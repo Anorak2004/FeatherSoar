@@ -1,0 +1,38 @@
+{
+  "package": "com.anorakovo.FeatherSoar",
+  "name": "FeatherSoar",
+  "versionName": "1.0.0",
+  "versionCode": 1,
+  "appCategory": [
+    "other"
+  ],
+  "icon": "/assets/images/logo.png",
+  "features": [
+    {
+      "name": "system.router"
+    }
+  ],
+  "deviceTypeList": [
+    "watch-square",
+    "watch-round"
+  ],
+  "config": {
+    "designWidth": 466,
+    "debug": true
+  },
+  "router": {
+    "entry": "pages/Demo",
+    "pages": {
+      "pages/Demo": {
+        "component": "index"
+      },
+      "pages/DemoDetail": {
+        "component": "index"
+      }
+    }
+  },
+  "display": {
+    "backgroundColor": "#ffffff"
+  },
+  "minPlatformVersion": 1070
+}
