@@ -1,0 +1,22 @@
+---
+description: Motion 模块规则
+globs:
+alwaysApply: false
+---
+# Motion 模块规则
+
+## 传感器数据采集
+- 使用 `Sensor` API 订阅加速度和陀螺仪数据，采样频率 ≥ 50Hz。
+- 每次挥拍检测：根据加速度振幅阈值与时间间隔，识别完整动作。
+- 力度与方向：结合陀螺仪旋转速率，区分杀球与一般击球。
+
+## 数据处理与算法
+- 拍速计算：对每次检测的峰值加速度结合传感器采样时间戳计算速度。
+- 心率处理：心率数据按秒级采样，计算平均/最高/最低心率。
+- 卡路里估算：采用 METs 算法，基于心率与时长计算累计消耗。
+- 手势分类：使用轻量级 ML 模型（TensorFlow.js）区分正手/反手。
+
+## 模块接口设计
+- `startSession(mode)`：初始化传感器与心率监测，接受模式参数 (`'singles'`, `'doubles'`, `'mixed'`)。
+- `stopSession()`：取消传感器订阅，返回本次运动数据对象。
+- 数据对象字段：`{ duration, calories, maxSpeed, avgHeartRate, strokes, smashes, forehand, backhand }`。

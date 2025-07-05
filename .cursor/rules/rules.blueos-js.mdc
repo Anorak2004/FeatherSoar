@@ -1,0 +1,29 @@
+---
+description: JavaScript & BlueOS 开发规范
+    
+globs:
+alwaysApply: false
+---
+# JavaScript & BlueOS 开发规范
+
+## 语言与代码风格
+- 使用 **ES6+** 语法，禁止使用 `var`。
+- 缩进 4 空格，强制分号；字符串使用单引号。
+- 命名：变量/函数 camelCase，类 PascalCase，常量 UPPER_SNAKE_CASE。
+- 使用 `import` / `export`，禁止动态 `require`。
+
+## 项目结构
+- Monorepo 根目录包含 `packages/`、`.cursor/rules/`、`src/`。
+- `manifest.json` 声明应用名、权限、路由；入口文件 `app.ux`。
+- 资源：样式放 `assets/styles/`，图片放 `assets/images/`。
+
+## .ux 组件开发
+- 每个页面或组件为单文件 `.ux`，包含 `<template>`、`<script>`、`<style>`。
+- 视图与逻辑分离：模板仅做数据绑定与事件声明，逻辑在脚本中实现。
+- 样式内联或在 `<style>` 中声明，避免 JS 操作 DOM。
+- 利用 MVVM 双向绑定，修改数据驱动 UI 更新。
+
+## 系统能力调用
+- 权限声明：在 `manifest.json` 中申请心率、传感器、网络等权限。
+- 调用健康数据接口（HealthKit）、通知（Notification/Toast）、传感器 (Accelerometer, Gyroscope) 等。
+- 对耗时操作使用异步 API 或 Service 线程，禁止阻塞 UI。

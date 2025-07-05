@@ -1,0 +1,24 @@
+---
+description: 通用项目规则
+alwaysApply: false
+---
+# 通用项目规则
+## 代码提交规范
+- **Conventional Commits**：`<type>(<scope>): <description>`。
+- 类型: feat, fix, docs, style, refactor, test, chore。
+- 范围（scope）对应子包名，如 `motion`、`ui`。
+- **分支管理**：使用 GitHub Flow，分支命名 `feature/xxx`、`bugfix/xxx`。
+- **语义化版本**：遵循 SemVer，Breaking Change 提升主版本。
+
+## 文档与注释
+- 所有公共 API 使用 **JSDoc** 注释，包含参数、返回值描述。
+- 根目录 `README.md` 必须包含项目简介、快速开始、目录结构说明。
+- `/docs` 目录存放架构设计、流程图、决策记录，保持同步更新。
+
+## 协作与流程
+- 配置 **ESLint** + **Prettier**，提交前通过 lint 和格式化检查。
+- PR 必须经过至少一人审查，关注逻辑完整性、边界处理、平台规范。
+- 使用 GitHub Issues 跟踪任务，PR 提交时引用 Issue 编号。
+
+## 开发环境
+- 默认为Windows11开发环境，执行相关命令时请对应调整。
