@@ -1,0 +1,82 @@
+<template>
+  <div class="feather-card" style="{{cardStyle}}">
+    <slot></slot>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    width: {
+      default: '100%'
+    },
+    height: {
+      default: 'auto'
+    },
+    padding: {
+      default: '15px'
+    },
+    margin: {
+      default: '10px 0'
+    },
+    radius: {
+      default: '20px'
+    },
+    bgColor: {
+      default: '#ffffff'
+    },
+    shadow: {
+      default: false,
+      type: Boolean
+    },
+    warning: {
+      default: false,
+      type: Boolean
+    }
+  },
+  
+  computed: {
+    cardStyle() {
+      let style = `
+        width: ${this.width};
+        height: ${this.height};
+        padding: ${this.padding};
+        margin: ${this.margin};
+        border-radius: ${this.radius};
+        background-color: ${this.bgColor};
+      `
+      
+      if (this.shadow) {
+        style += 'box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);'
+      }
+      
+      if (this.warning) {
+        style += 'animation: pulse 1s infinite; border: 2px solid #FF5733;'
+      }
+      
+      return style
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+@import './../../../src/assets/styles/style.scss';
+
+.feather-card {
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 51, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 87, 51, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 51, 0);
+  }
+}
+</style> 

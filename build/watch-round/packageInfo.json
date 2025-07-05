@@ -1,10 +1,10 @@
 {
   "originType": "native",
   "toolkit": "1.0.9-beta.22",
-  "buildTime": "2025/07/05 17:46",
+  "buildTime": "2025/07/05 20:53",
   "node": "v18.15.0",
   "platform": "win32",
   "arch": "x64",
-  "appCommit": "not a git repo.",
+  "appCommit": "caa15ef9",
   "commit": "706fb6d1"
 }

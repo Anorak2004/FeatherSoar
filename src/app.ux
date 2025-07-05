@@ -1,11 +1,107 @@
 <script>
 /**
- * 入口文件
- * 应用级别的配置，供所有页面公用
+ * 轻羽飞扬 - 应用入口文件
  */
 import './global.js'
 
 export default {
-  onCreate() {}
+  /**
+   * 应用创建时执行
+   */
+  onCreate() {
+    console.log('FeatherSoar App Created')
+    
+    // 初始化存储
+    try {
+      // 确保storage API可用
+      if (global.storage) {
+        console.log('存储API可用')
+        
+        // 创建一个已解析的Promise
+        global.dbInitPromise = Promise.resolve()
+          .then(() => {
+            console.log('存储初始化成功')
+            return this.createSessionsStorage()
+          })
+          .catch(err => {
+            console.error('存储初始化错误:', err)
+            return Promise.resolve()
+          })
+      } else {
+        console.log('存储API不可用')
+        global.dbInitPromise = Promise.resolve()
+      }
+    } catch (e) {
+      console.error('应用初始化错误:', e)
+      global.dbInitPromise = Promise.resolve()
+    }
+    
+    // 注册全局错误处理
+    global.onerror = (error) => {
+      console.error(`全局错误: ${error.message}`)
+      return true
+    }
+  },
+  
+  /**
+   * 确保会话存储已创建
+   */
+  createSessionsStorage() {
+    return new Promise((resolve) => {
+      try {
+        if (global.storage && typeof global.storage.get === 'function') {
+          global.storage.get({
+            key: 'sessions',
+            success: (data) => {
+              // 如果不存在，创建一个空数组
+              if (!data) {
+                global.storage.set({
+                  key: 'sessions',
+                  value: JSON.stringify([]),
+                  success: () => resolve(),
+                  fail: () => resolve()
+                })
+              } else {
+                resolve()
+              }
+            },
+            fail: () => {
+              // 创建一个空数组
+              global.storage.set({
+                key: 'sessions',
+                value: JSON.stringify([]),
+                success: () => resolve(),
+                fail: () => resolve()
+              })
+            }
+          })
+        } else {
+          resolve()
+        }
+      } catch (e) {
+        console.error('创建会话存储错误:', e)
+        resolve()
+      }
+    })
+  },
+  
+  /**
+   * 显示Toast提示
+   */
+  showToast(message, duration = 2000) {
+    try {
+      if (global.notification && typeof global.notification.showToast === 'function') {
+        global.notification.showToast({
+          message,
+          duration
+        })
+      } else {
+        console.log(`Toast: ${message}`)
+      }
+    } catch (e) {
+      console.error('显示Toast错误:', e)
+      console.log(`Toast: ${message}`)
+    }
+  }
 }
 </script>

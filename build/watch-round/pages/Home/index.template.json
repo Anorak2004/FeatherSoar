@@ -1,0 +1,330 @@
+{
+  "type": "div",
+  "class": "home-page",
+  "style": {
+    "alignItems": "center",
+    "backgroundColor": "#f5f5f5",
+    "flexDirection": "column",
+    "height": "100%",
+    "justifyContent": "space-between",
+    "paddingBottom": "15px",
+    "paddingLeft": "15px",
+    "paddingRight": "15px",
+    "paddingTop": "15px",
+    "width": "100%"
+  },
+  "styleObjectId": 779992388,
+  "children": [
+    {
+      "type": "div",
+      "class": "header",
+      "style": {
+        "alignItems": "center",
+        "flexDirection": "column",
+        "justifyContent": "center",
+        "marginTop": "30px"
+      },
+      "children": [
+        {
+          "type": "text",
+          "attr": {
+            "value": "轻羽飞扬"
+          },
+          "class": "title",
+          "style": {
+            "color": "#33C9AB",
+            "fontSize": "35px",
+            "fontWeight": "bold"
+          }
+        },
+        {
+          "type": "text",
+          "attr": {
+            "value": "羽毛球运动记录"
+          },
+          "class": "subtitle",
+          "style": {
+            "color": "#333333",
+            "fontSize": "15px",
+            "marginTop": "5px"
+          }
+        }
+      ]
+    },
+    {
+      "type": "div",
+      "class": "content",
+      "style": {
+        "alignItems": "center",
+        "flexDirection": "column",
+        "justifyContent": "center",
+        "width": "100%"
+      },
+      "children": [
+        {
+          "type": "div",
+          "class": "card main-card",
+          "style": {
+            "alignItems": "center",
+            "backgroundColor": "#ffffff",
+            "borderRadius": "20px",
+            "flexDirection": "column",
+            "justifyContent": "center",
+            "marginBottom": "20px",
+            "paddingBottom": "30px",
+            "paddingLeft": "30px",
+            "paddingRight": "30px",
+            "paddingTop": "30px",
+            "width": "100%"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attr": {
+                "value": "开始运动"
+              },
+              "class": "card-title",
+              "style": {
+                "color": "#333333",
+                "fontSize": "20px",
+                "marginBottom": "10px"
+              }
+            },
+            {
+              "type": "input",
+              "attr": {
+                "type": "button",
+                "value": "开始"
+              },
+              "bind": 1,
+              "class": "start-btn",
+              "events": {
+                "click": "onStartClick"
+              },
+              "style": {
+                "backgroundColor": "#33C9AB",
+                "borderRadius": "20px",
+                "color": "#ffffff",
+                "fontSize": "25px",
+                "height": "60px",
+                "marginTop": "20px",
+                "textAlign": "center",
+                "width": "80%"
+              }
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "bind": 1,
+          "class": "card history-card",
+          "events": {
+            "click": "onHistoryClick"
+          },
+          "style": {
+            "alignItems": "center",
+            "backgroundColor": "#ffffff",
+            "borderRadius": "20px",
+            "flexDirection": "column",
+            "justifyContent": "center",
+            "marginBottom": "20px",
+            "paddingBottom": "15px",
+            "paddingLeft": "15px",
+            "paddingRight": "15px",
+            "paddingTop": "15px",
+            "width": "100%"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attr": {
+                "value": "历史记录"
+              },
+              "class": "card-title",
+              "style": {
+                "color": "#333333",
+                "fontSize": "20px",
+                "marginBottom": "10px"
+              }
+            },
+            {
+              "type": "text",
+              "attr": {
+                "$value": "historyCount"
+              },
+              "bind": 1,
+              "class": "card-value",
+              "style": {
+                "color": "#33C9AB",
+                "fontSize": "40px",
+                "fontWeight": "bold",
+                "marginBottom": "10px",
+                "marginLeft": "0px",
+                "marginRight": "0px",
+                "marginTop": "10px"
+              }
+            },
+            {
+              "type": "text",
+              "attr": {
+                "value": "总场次"
+              },
+              "class": "card-label",
+              "style": {
+                "color": "#9393aa",
+                "fontSize": "15px"
+              }
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "bind": 1,
+          "class": "card stats-card",
+          "events": {
+            "click": "onStatsClick"
+          },
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderRadius": "20px",
+            "marginBottom": "20px",
+            "paddingBottom": "15px",
+            "paddingLeft": "15px",
+            "paddingRight": "15px",
+            "paddingTop": "15px",
+            "width": "100%"
+          },
+          "children": [
+            {
+              "type": "text",
+              "attr": {
+                "value": "统计数据"
+              },
+              "class": "card-title",
+              "style": {
+                "color": "#333333",
+                "fontSize": "20px",
+                "marginBottom": "10px"
+              }
+            },
+            {
+              "type": "div",
+              "class": "stats-row",
+              "style": {
+                "alignItems": "center",
+                "flexDirection": "row",
+                "justifyContent": "space-around",
+                "marginTop": "10px",
+                "width": "100%"
+              },
+              "children": [
+                {
+                  "type": "div",
+                  "class": "stats-item",
+                  "style": {
+                    "alignItems": "center",
+                    "flexDirection": "column",
+                    "justifyContent": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "attr": {
+                        "$value": "totalStrokes"
+                      },
+                      "bind": 1,
+                      "class": "stats-value",
+                      "style": {
+                        "color": "#33C9AB",
+                        "fontSize": "25px",
+                        "fontWeight": "bold"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "attr": {
+                        "value": "总挥拍"
+                      },
+                      "class": "stats-label",
+                      "style": {
+                        "color": "#9393aa",
+                        "fontSize": "15px",
+                        "marginTop": "5px"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "div",
+                  "class": "stats-item",
+                  "style": {
+                    "alignItems": "center",
+                    "flexDirection": "column",
+                    "justifyContent": "center"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "attr": {
+                        "$value": "totalCalories"
+                      },
+                      "bind": 1,
+                      "class": "stats-value",
+                      "style": {
+                        "color": "#33C9AB",
+                        "fontSize": "25px",
+                        "fontWeight": "bold"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "attr": {
+                        "value": "总消耗(kcal)"
+                      },
+                      "class": "stats-label",
+                      "style": {
+                        "color": "#9393aa",
+                        "fontSize": "15px",
+                        "marginTop": "5px"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "div",
+      "class": "footer",
+      "style": {
+        "marginBottom": "30px"
+      },
+      "children": [
+        {
+          "type": "input",
+          "attr": {
+            "type": "button",
+            "value": "设置"
+          },
+          "bind": 1,
+          "class": "settings-btn",
+          "events": {
+            "click": "onSettingsClick"
+          },
+          "style": {
+            "backgroundColor": "#2B7A9A",
+            "borderRadius": "20px",
+            "color": "#ffffff",
+            "fontSize": "20px",
+            "height": "40px",
+            "textAlign": "center",
+            "width": "200px"
+          }
+        }
+      ]
+    }
+  ]
+}

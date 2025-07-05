@@ -1,0 +1,140 @@
+{
+  "779992388": {
+    "@KEYFRAMES": {
+      "pulse": [
+        {
+          "boxShadow": "0 0 0 0 rgba(255, 87, 51, 0.7)",
+          "time": 0
+        },
+        {
+          "boxShadow": "0 0 0 10px rgba(255, 87, 51, 0)",
+          "time": 70
+        },
+        {
+          "boxShadow": "0 0 0 0 rgba(255, 87, 51, 0)",
+          "time": 100
+        }
+      ]
+    },
+    ".home-page": {
+      "flexDirection": "column",
+      "justifyContent": "space-between",
+      "alignItems": "center",
+      "width": "100%",
+      "height": "100%",
+      "backgroundColor": "#f5f5f5",
+      "paddingTop": "15px",
+      "paddingRight": "15px",
+      "paddingBottom": "15px",
+      "paddingLeft": "15px"
+    },
+    ".home-page .header": {
+      "flexDirection": "column",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "marginTop": "30px"
+    },
+    ".home-page .header .title": {
+      "fontSize": "35px",
+      "color": "#33C9AB",
+      "fontWeight": "bold"
+    },
+    ".home-page .header .subtitle": {
+      "fontSize": "15px",
+      "color": "#333333",
+      "marginTop": "5px"
+    },
+    ".home-page .content": {
+      "flexDirection": "column",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "width": "100%"
+    },
+    ".home-page .content .card": {
+      "backgroundColor": "#ffffff",
+      "borderRadius": "20px",
+      "paddingTop": "15px",
+      "paddingRight": "15px",
+      "paddingBottom": "15px",
+      "paddingLeft": "15px",
+      "width": "100%",
+      "marginBottom": "20px"
+    },
+    ".home-page .content .card .card-title": {
+      "fontSize": "20px",
+      "color": "#333333",
+      "marginBottom": "10px"
+    },
+    ".home-page .content .main-card": {
+      "flexDirection": "column",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "paddingTop": "30px",
+      "paddingRight": "30px",
+      "paddingBottom": "30px",
+      "paddingLeft": "30px"
+    },
+    ".home-page .content .main-card .start-btn": {
+      "backgroundColor": "#33C9AB",
+      "color": "#ffffff",
+      "borderRadius": "20px",
+      "textAlign": "center",
+      "width": "80%",
+      "height": "60px",
+      "fontSize": "25px",
+      "marginTop": "20px"
+    },
+    ".home-page .content .history-card": {
+      "flexDirection": "column",
+      "justifyContent": "center",
+      "alignItems": "center"
+    },
+    ".home-page .content .history-card .card-value": {
+      "fontSize": "40px",
+      "color": "#33C9AB",
+      "fontWeight": "bold",
+      "marginTop": "10px",
+      "marginRight": "0px",
+      "marginBottom": "10px",
+      "marginLeft": "0px"
+    },
+    ".home-page .content .history-card .card-label": {
+      "fontSize": "15px",
+      "color": "#9393aa"
+    },
+    ".home-page .content .stats-card .stats-row": {
+      "flexDirection": "row",
+      "justifyContent": "space-around",
+      "alignItems": "center",
+      "width": "100%",
+      "marginTop": "10px"
+    },
+    ".home-page .content .stats-card .stats-item": {
+      "flexDirection": "column",
+      "justifyContent": "center",
+      "alignItems": "center"
+    },
+    ".home-page .content .stats-card .stats-value": {
+      "fontSize": "25px",
+      "color": "#33C9AB",
+      "fontWeight": "bold"
+    },
+    ".home-page .content .stats-card .stats-label": {
+      "fontSize": "15px",
+      "color": "#9393aa",
+      "marginTop": "5px"
+    },
+    ".home-page .footer": {
+      "marginBottom": "30px"
+    },
+    ".home-page .footer .settings-btn": {
+      "height": "40px",
+      "backgroundColor": "#2B7A9A",
+      "color": "#ffffff",
+      "borderRadius": "20px",
+      "fontSize": "20px",
+      "textAlign": "center",
+      "width": "200px"
+    }
+  }
+}

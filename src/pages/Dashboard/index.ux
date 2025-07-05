@@ -1,0 +1,640 @@
+<template>
+  <div class="dashboard-page">
+    <div class="header">
+      <text class="title">实时数据</text>
+      <text class="mode-label">{{modeText}}</text>
+      <text class="timer">{{formattedTime}}</text>
+    </div>
+    
+    <div class="content">
+      <div class="stats-row">
+        <div class="stat-card {{heartRateWarning ? 'warning' : ''}}">
+          <text class="stat-title">心率</text>
+          <text class="stat-value">{{heartRate}}</text>
+          <text class="stat-unit">BPM</text>
+        </div>
+        
+        <div class="stat-card">
+          <text class="stat-title">拍速</text>
+          <text class="stat-value">{{currentSpeed}}</text>
+          <text class="stat-unit">km/h</text>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-header">
+          <text class="chart-title">趋势</text>
+          <div class="chart-legend">
+            <div class="legend-item">
+              <div class="legend-color heart-rate-color"></div>
+              <text class="legend-text">心率</text>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color speed-color"></div>
+              <text class="legend-text">拍速</text>
+            </div>
+          </div>
+        </div>
+        <div class="chart">
+          <!-- 图表将在JS中绘制 -->
+          <canvas id="trendChart" class="trend-chart"></canvas>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="grid-item">
+          <text class="grid-title">挥拍</text>
+          <text class="grid-value">{{strokeCount}}</text>
+        </div>
+        <div class="grid-item">
+          <text class="grid-title">杀球</text>
+          <text class="grid-value">{{smashCount}}</text>
+        </div>
+        <div class="grid-item">
+          <text class="grid-title">正手</text>
+          <text class="grid-value">{{forehandCount}}</text>
+        </div>
+        <div class="grid-item">
+          <text class="grid-title">反手</text>
+          <text class="grid-value">{{backhandCount}}</text>
+        </div>
+        <div class="grid-item">
+          <text class="grid-title">最高拍速</text>
+          <text class="grid-value">{{maxSpeed}}</text>
+        </div>
+        <div class="grid-item">
+          <text class="grid-title">卡路里</text>
+          <text class="grid-value">{{calories}}</text>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <input
+        class="end-btn"
+        type="button"
+        value="结束"
+        onclick="onEndClick"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+// 导入所需模块
+import { 
+  startAccelerometerListening, 
+  stopAccelerometerListening,
+  startGyroscopeListening,
+  stopGyroscopeListening
+} from '../../../packages/motion/sensor'
+
+import {
+  startHeartRateMonitoring,
+  stopHeartRateMonitoring,
+  getHeartRateStats,
+  checkHeartRateWarning
+} from '../../../packages/motion/heartRate'
+
+import {
+  initStrokeDetection,
+  processAccelerometerData,
+  processGyroscopeData,
+  getStrokeStats,
+  resetStats
+} from '../../../packages/motion/strokeDetection'
+
+import {
+  calculateRealTimeCalories
+} from '../../../packages/motion/calorieCalculation'
+
+import {
+  formatDuration
+} from '../../../packages/core/utils/dateTime'
+
+export default {
+  data: {
+    // 会话数据
+    session: null,
+    startTime: 0,
+    elapsedSeconds: 0,
+    formattedTime: '00:00:00',
+    
+    // 心率数据
+    heartRate: 0,
+    heartRateMin: 60,
+    heartRateMax: 180,
+    heartRateWarning: false,
+    enableHeartRateWarning: true,
+    
+    // 挥拍数据
+    strokeCount: 0,
+    smashCount: 0,
+    forehandCount: 0,
+    backhandCount: 0,
+    currentSpeed: 0,
+    maxSpeed: 0,
+    
+    // 其他数据
+    calories: 0,
+    modeText: '单打',
+    
+    // 图表相关
+    chartContext: null,
+    chartData: {
+      heartRate: [],
+      speed: []
+    },
+    
+    // 定时器
+    timerInterval: null,
+    chartInterval: null,
+    caloriesInterval: null
+  },
+  
+  onInit() {
+    // 解析传入的参数
+    const params = this.$page.params
+    
+    if (params.session) {
+      this.session = JSON.parse(params.session)
+      this.startTime = this.session.startTime
+      
+      // 设置模式文本
+      switch (this.session.mode) {
+        case 'singles':
+          this.modeText = '单打'
+          break
+        case 'doubles':
+          this.modeText = '双打'
+          break
+        case 'mixed':
+          this.modeText = '混双'
+          break
+      }
+    }
+    
+    // 设置心率预警参数
+    this.enableHeartRateWarning = params.heartRateWarning === 'true' || params.heartRateWarning === true
+    this.heartRateMin = parseInt(params.heartRateMin) || 60
+    this.heartRateMax = parseInt(params.heartRateMax) || 180
+    
+    // 初始化挥拍检测
+    initStrokeDetection(this.onStrokeDetected.bind(this))
+  },
+  
+  onReady() {
+    // 获取图表Canvas上下文
+    const canvas = this.$element('trendChart')
+    if (canvas) {
+      this.chartContext = canvas.getContext('2d')
+    }
+    
+    // 开始监测
+    this.startMonitoring()
+    
+    // 启动定时器
+    this.startTimers()
+  },
+  
+  onDestroy() {
+    // 停止所有监测和定时器
+    this.stopMonitoring()
+    this.stopTimers()
+  },
+  
+  methods: {
+    /**
+     * 开始所有监测
+     */
+    startMonitoring() {
+      // 开始加速度传感器监测
+      startAccelerometerListening((data) => {
+        processAccelerometerData(data)
+      })
+      
+      // 开始陀螺仪传感器监测
+      startGyroscopeListening((data) => {
+        processGyroscopeData(data)
+      })
+      
+      // 开始心率监测
+      startHeartRateMonitoring((heartRate) => {
+        this.heartRate = heartRate
+        
+        // 检查心率预警
+        if (this.enableHeartRateWarning) {
+          const warning = checkHeartRateWarning(this.heartRateMin, this.heartRateMax)
+          this.heartRateWarning = warning.isWarning
+          
+          // 如果是预警状态，触发振动
+          if (warning.isWarning) {
+            global.notification.vibrate({
+              mode: 'short'
+            })
+          }
+        }
+        
+        // 添加心率数据点到图表
+        this.chartData.heartRate.push({
+          timestamp: Date.now(),
+          value: heartRate
+        })
+        
+        // 保持图表数据点数量在合理范围内
+        if (this.chartData.heartRate.length > 60) {
+          this.chartData.heartRate.shift()
+        }
+      })
+    },
+    
+    /**
+     * 停止所有监测
+     */
+    stopMonitoring() {
+      stopAccelerometerListening()
+      stopGyroscopeListening()
+      stopHeartRateMonitoring()
+    },
+    
+    /**
+     * 启动定时器
+     */
+    startTimers() {
+      // 计时器
+      this.timerInterval = setInterval(() => {
+        this.elapsedSeconds = Math.floor((Date.now() - this.startTime) / 1000)
+        this.formattedTime = formatDuration(this.elapsedSeconds)
+      }, 1000)
+      
+      // 图表更新
+      this.chartInterval = setInterval(() => {
+        this.updateChart()
+      }, 1000)
+      
+      // 卡路里计算
+      this.caloriesInterval = setInterval(() => {
+        this.updateCalories()
+      }, 10000) // 每10秒更新一次卡路里
+    },
+    
+    /**
+     * 停止所有定时器
+     */
+    stopTimers() {
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval)
+      }
+      
+      if (this.chartInterval) {
+        clearInterval(this.chartInterval)
+      }
+      
+      if (this.caloriesInterval) {
+        clearInterval(this.caloriesInterval)
+      }
+    },
+    
+    /**
+     * 挥拍检测回调
+     * @param {Object} strokeData - 挥拍数据
+     */
+    onStrokeDetected(strokeData) {
+      // 更新统计数据
+      const stats = getStrokeStats()
+      
+      this.strokeCount = stats.strokeCount
+      this.smashCount = stats.smashCount
+      this.forehandCount = stats.forehandCount
+      this.backhandCount = stats.backhandCount
+      this.currentSpeed = stats.currentSpeed
+      this.maxSpeed = stats.maxSpeed
+      
+      // 添加拍速数据点到图表
+      this.chartData.speed.push({
+        timestamp: Date.now(),
+        value: this.currentSpeed
+      })
+      
+      // 保持图表数据点数量在合理范围内
+      if (this.chartData.speed.length > 60) {
+        this.chartData.speed.shift()
+      }
+    },
+    
+    /**
+     * 更新卡路里消耗
+     */
+    updateCalories() {
+      const elapsedMinutes = this.elapsedSeconds / 60
+      const heartRateStats = getHeartRateStats()
+      
+      this.calories = calculateRealTimeCalories(
+        elapsedMinutes,
+        this.session.mode,
+        heartRateStats.avg
+      )
+    },
+    
+    /**
+     * 更新图表
+     */
+    updateChart() {
+      if (!this.chartContext) return
+      
+      const ctx = this.chartContext
+      const canvas = this.$element('trendChart')
+      const width = canvas.width
+      const height = canvas.height
+      
+      // 清除画布
+      ctx.clearRect(0, 0, width, height)
+      
+      // 设置坐标系
+      const padding = 20
+      const chartWidth = width - padding * 2
+      const chartHeight = height - padding * 2
+      
+      // 绘制坐标轴
+      ctx.beginPath()
+      ctx.strokeStyle = '#CCCCCC'
+      ctx.moveTo(padding, padding)
+      ctx.lineTo(padding, height - padding)
+      ctx.lineTo(width - padding, height - padding)
+      ctx.stroke()
+      
+      // 绘制心率线
+      this.drawDataLine(
+        ctx, 
+        this.chartData.heartRate, 
+        '#FF5733', 
+        padding, 
+        chartWidth, 
+        chartHeight, 
+        height, 
+        50, 200
+      )
+      
+      // 绘制拍速线
+      this.drawDataLine(
+        ctx, 
+        this.chartData.speed, 
+        '#33C9AB', 
+        padding, 
+        chartWidth, 
+        chartHeight, 
+        height, 
+        0, 100
+      )
+    },
+    
+    /**
+     * 绘制数据线
+     * @param {Object} ctx - Canvas上下文
+     * @param {Array} data - 数据点数组
+     * @param {string} color - 线条颜色
+     * @param {number} padding - 内边距
+     * @param {number} chartWidth - 图表宽度
+     * @param {number} chartHeight - 图表高度
+     * @param {number} height - Canvas高度
+     * @param {number} minValue - 最小值
+     * @param {number} maxValue - 最大值
+     */
+    drawDataLine(ctx, data, color, padding, chartWidth, chartHeight, height, minValue, maxValue) {
+      if (!data || data.length < 2) return
+      
+      ctx.beginPath()
+      ctx.strokeStyle = color
+      ctx.lineWidth = 2
+      
+      const valueRange = maxValue - minValue
+      
+      // 计算时间范围（最近60秒）
+      const now = Date.now()
+      const timeRange = 60000 // 60秒
+      const startTime = now - timeRange
+      
+      // 计算第一个点的位置
+      const firstPoint = data[0]
+      const firstTimeRatio = Math.min(1, Math.max(0, (firstPoint.timestamp - startTime) / timeRange))
+      const firstX = padding + chartWidth * firstTimeRatio
+      const firstY = height - padding - (chartHeight * (firstPoint.value - minValue) / valueRange)
+      
+      ctx.moveTo(firstX, firstY)
+      
+      // 绘制剩余点
+      for (let i = 1; i < data.length; i++) {
+        const point = data[i]
+        const timeRatio = Math.min(1, Math.max(0, (point.timestamp - startTime) / timeRange))
+        const x = padding + chartWidth * timeRatio
+        const y = height - padding - (chartHeight * (point.value - minValue) / valueRange)
+        
+        ctx.lineTo(x, y)
+      }
+      
+      ctx.stroke()
+    },
+    
+    /**
+     * 结束按钮点击事件
+     */
+    onEndClick() {
+      // 停止所有监测和定时器
+      this.stopMonitoring()
+      this.stopTimers()
+      
+      // 更新会话数据
+      const heartRateStats = getHeartRateStats()
+      const strokeStats = getStrokeStats()
+      
+      this.session.endTime = Date.now()
+      this.session.duration = this.elapsedSeconds
+      this.session.calories = this.calories
+      this.session.maxSpeed = strokeStats.maxSpeed
+      this.session.avgHeartRate = heartRateStats.avg
+      this.session.maxHeartRate = heartRateStats.max
+      this.session.minHeartRate = heartRateStats.min
+      this.session.strokes = strokeStats.strokeCount
+      this.session.smashes = strokeStats.smashCount
+      this.session.forehand = strokeStats.forehandCount
+      this.session.backhand = strokeStats.backhandCount
+      
+      // 跳转到报告页面
+      global.router.push({
+        uri: '/pages/Report',
+        params: {
+          session: JSON.stringify(this.session)
+        }
+      })
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+@import './../../assets/styles/style.scss';
+
+.dashboard-page {
+  @include flex-box(column, space-between, center);
+  width: 100%;
+  height: 100%;
+  background-color: $light-grey;
+  padding: $spacing-md;
+  
+  .header {
+    @include flex-box(column, center, center);
+    width: 100%;
+    
+    .title {
+      font-size: $font-large;
+      color: $dark-grey;
+      font-weight: bold;
+    }
+    
+    .mode-label {
+      font-size: $font-small;
+      color: $grey;
+      margin-top: $spacing-xs;
+    }
+    
+    .timer {
+      font-size: $font-xlarge;
+      color: $brand;
+      font-weight: bold;
+      margin-top: $spacing-sm;
+    }
+  }
+  
+  .content {
+    @include flex-box(column, center, center);
+    width: 100%;
+    
+    .stats-row {
+      @include flex-box(row, space-between, center);
+      width: 100%;
+      margin-bottom: $spacing-md;
+      
+      .stat-card {
+        @include card;
+        @include flex-box(column, center, center);
+        width: 48%;
+        padding: $spacing-md;
+        
+        &.warning {
+          @include heart-rate-warning;
+        }
+        
+        .stat-title {
+          font-size: $font-normal;
+          color: $dark-grey;
+        }
+        
+        .stat-value {
+          font-size: $font-value;
+          color: $brand;
+          font-weight: bold;
+          margin: $spacing-xs 0;
+        }
+        
+        .stat-unit {
+          font-size: $font-small;
+          color: $grey;
+        }
+      }
+    }
+    
+    .chart-container {
+      @include card;
+      width: 100%;
+      margin-bottom: $spacing-md;
+      padding: $spacing-md;
+      
+      .chart-header {
+        @include flex-box(row, space-between, center);
+        width: 100%;
+        margin-bottom: $spacing-sm;
+        
+        .chart-title {
+          font-size: $font-normal;
+          color: $dark-grey;
+        }
+        
+        .chart-legend {
+          @include flex-box(row, flex-end, center);
+          
+          .legend-item {
+            @include flex-box(row, center, center);
+            margin-left: $spacing-md;
+            
+            .legend-color {
+              width: 3 * $size-factor;
+              height: 3 * $size-factor;
+              border-radius: 1.5 * $size-factor;
+              margin-right: $spacing-xs;
+              
+              &.heart-rate-color {
+                background-color: #FF5733;
+              }
+              
+              &.speed-color {
+                background-color: #33C9AB;
+              }
+            }
+            
+            .legend-text {
+              font-size: $font-small;
+              color: $grey;
+            }
+          }
+        }
+      }
+      
+      .chart {
+        width: 100%;
+        height: 40 * $size-factor;
+        
+        .trend-chart {
+          width: 100%;
+          height: 100%;
+        }
+      }
+    }
+    
+    .stats-grid {
+      @include flex-box(row, space-between, flex-start);
+      flex-wrap: wrap;
+      width: 100%;
+      
+      .grid-item {
+        @include card;
+        @include flex-box(column, center, center);
+        width: 32%;
+        margin-bottom: $spacing-sm;
+        padding: $spacing-sm;
+        
+        .grid-title {
+          font-size: $font-small;
+          color: $grey;
+        }
+        
+        .grid-value {
+          font-size: $font-large;
+          color: $brand;
+          font-weight: bold;
+          margin-top: $spacing-xs;
+        }
+      }
+    }
+  }
+  
+  .footer {
+    width: 100%;
+    margin-bottom: $spacing-lg;
+    
+    .end-btn {
+      @include button($warning, $white);
+      width: 100%;
+    }
+  }
+}
+</style> 

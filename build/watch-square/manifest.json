@@ -1,15 +1,33 @@
 {
-  "package": "com.anorakovo.FeatherSoar",
-  "name": "FeatherSoar",
+  "package": "com.vivo.feathersoar",
+  "name": "轻羽飞扬",
   "versionName": "1.0.0",
   "versionCode": 1,
   "appCategory": [
-    "other"
+    "sports"
   ],
   "icon": "/assets/images/logo.png",
   "features": [
     {
       "name": "system.router"
+    },
+    {
+      "name": "blueos.app.sensor.accelerometer"
+    },
+    {
+      "name": "blueos.app.sensor.gyroscope"
+    },
+    {
+      "name": "blueos.app.health.heartrate"
+    },
+    {
+      "name": "blueos.app.health.workout"
+    },
+    {
+      "name": "blueos.app.notification"
+    },
+    {
+      "name": "blueos.app.storage.database"
     }
   ],
   "deviceTypeList": [
@@ -21,18 +39,30 @@
     "debug": true
   },
   "router": {
-    "entry": "pages/Demo",
+    "entry": "pages/Home",
     "pages": {
-      "pages/Demo": {
+      "pages/Home": {
         "component": "index"
       },
-      "pages/DemoDetail": {
+      "pages/SessionStart": {
+        "component": "index"
+      },
+      "pages/Dashboard": {
+        "component": "index"
+      },
+      "pages/Report": {
+        "component": "index"
+      },
+      "pages/History": {
+        "component": "index"
+      },
+      "pages/Settings": {
         "component": "index"
       }
     }
   },
   "display": {
-    "backgroundColor": "#ffffff"
+    "backgroundColor": "#33C9AB"
   },
   "minPlatformVersion": 1070
 }

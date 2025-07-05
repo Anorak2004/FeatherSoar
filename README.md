@@ -1,46 +1,80 @@
-# 应用示例模版
+# 轻羽飞扬 (FeatherSoar)
 
-## 文件结构
+轻羽飞扬是一款专为羽毛球爱好者设计的智能手表应用，帮助用户记录、分析和提升羽毛球运动表现。
+
+## 功能特点
+
+- **实时数据监测**：心率、挥拍速度、挥拍次数等数据实时监测
+- **动作识别**：自动识别正手、反手、杀球等动作
+- **数据分析**：详细的运动报告和趋势分析
+- **健康管理**：心率预警、卡路里消耗计算
+- **历史记录**：查看历史训练数据和进步情况
+
+## 项目结构
 
 ```
-├── sign                # 存储 rpk 包签名模块(须自行生成);
-│   ├── certificate.pem # 证书文件
-│   └── private.pem     # 私钥文件
-└── src
-│   ├── assets          # 公用的资源(images/styles/字体...)
-│   │   ├──images       # 存储 png/jpg/svg 等公共图片资源
-│   │   └──styles       # 存放 less/css/sass 等公共样式资源
-│   ├── pages           # 统一存放项目页面级代码
-│   ├── app.ux          # 应用程序代码的人口文件
-│   ├── global.js       # 统一定义全局变量、常量；
-│   ├── app.d.ts        # 应用声明文件，声明全局变量、类型等；
-│   ├── manifest.json   # 配置蓝河应用基本信息
-│   └── components      # 存放蓝河应用组件
-└── tsconfig.json       # 为 JavaScript 语言服务提供配置选项；
-└── package.json        # 定义项目需要的各种模块及配置信息
+feathersoar/
+├── src/                    # 源代码目录
+│   ├── assets/             # 资源文件
+│   │   ├── images/         # 图片资源
+│   │   └── styles/         # 样式文件
+│   ├── pages/              # 页面组件
+│   │   ├── Home/           # 首页
+│   │   ├── SessionStart/   # 运动开始页
+│   │   ├── Dashboard/      # 运动仪表盘页
+│   │   ├── Report/         # 运动报告页
+│   │   ├── History/        # 历史记录页
+│   │   └── Settings/       # 设置页
+│   ├── app.ux              # 应用入口文件
+│   ├── app.d.ts            # 类型声明文件
+│   ├── global.js           # 全局变量和API
+│   └── manifest.json       # 应用配置文件
+├── packages/               # 功能模块包
+│   ├── core/               # 核心工具和类型
+│   ├── motion/             # 运动数据采集与算法
+│   ├── ui/                 # UI组件
+│   ├── service/            # 服务和API
+│   ├── watchface/          # 表盘组件
+│   └── quickcard/          # 快捷卡片组件
+└── scripts/                # 构建和工具脚本
 ```
 
-### 模版说明
+## 技术栈
 
-- `Demo` 页面：示例页面；
-- `DemoDetail`页面：详情页面；
+- BlueOS 应用开发框架
+- JavaScript/TypeScript
+- SASS/SCSS
+- Canvas 图表绘制
 
+## 安装与使用
 
-## 如何开始
+1. 克隆本仓库
+   ```
+   git clone https://github.com/yourusername/feathersoar.git
+   cd feathersoar
+   ```
 
-```bash
-# 安装依赖（或基于 Studio 图形化操作）
-pnpm i
-```
+2. 安装依赖
+   ```
+   pnpm install
+   ```
 
-## 如何使用
+3. 开发调试
+   ```
+   pnpm dev
+   ```
 
-- **内置样式处理方案**；「蓝河应用」支持 `sass` 的预编译；这里采取 [dart sass](https://sass-lang.com/documentation) 方案，并内置了部分变量，以及常用混合方法，使得可以轻松开启样式编写、复用、修改等；
-- **添加新增页面命令脚本**；如果需要新建页面，只需运行：`yarn gen YourPageName` ，当然，也可以根据需要，自行定定制模板：_/command/gen/template.ux_；
-- **集成 [Prettier](https://prettier.io/)**；在检测代码中潜在问题的同时，统一团队代码规范、风格（`js`，`less`，`scss`等），从而促使写出高质量代码，以提升工作效率(尤其针对团队开发)；
+4. 构建应用
+   ```
+   pnpm build
+   ```
 
-## 内置命令
+## 开发团队
 
-|  命令 | 描述  | 备注 |
-|---|---|---|
-| `pnpm gen`  | 新增「 BlueOS 应用」页面 | [Studio 已内置，可通过图形化操作](https://studio.blueos.com.cn/write/create-page/) |
+- 设计：UI/UX设计团队
+- 开发：前端开发团队
+- 算法：运动数据分析团队
+
+## 许可证
+
+本项目采用 MIT 许可证

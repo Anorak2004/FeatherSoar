@@ -1,5 +1,62 @@
-@mixin flex-box-mixins($direction: row, $justify: center, $align-items: center) {
+@mixin flex-box($direction: row, $justify: center, $align-items: center) {
   flex-direction: $direction;
   justify-content: $justify;
   align-items: $align-items;
+}
+
+@mixin card($padding: $spacing-md) {
+  background-color: $white;
+  border-radius: $card-radius;
+  padding: $padding;
+}
+
+@mixin data-card($width: 100%, $height: auto) {
+  @include card;
+  width: $width;
+  height: $height;
+  margin-bottom: $spacing-md;
+  
+  .card-title {
+    font-size: $font-normal;
+    color: $dark-grey;
+    margin-bottom: $spacing-xs;
+  }
+  
+  .card-value {
+    font-size: $font-value;
+    color: $brand;
+    font-weight: bold;
+  }
+  
+  .card-unit {
+    font-size: $font-small;
+    color: $grey;
+    margin-left: $spacing-xs;
+  }
+}
+
+@mixin button($bg-color: $brand, $text-color: $white) {
+  height: $button-height;
+  background-color: $bg-color;
+  color: $text-color;
+  border-radius: $button-height / 2;
+  font-size: $font-normal;
+  text-align: center;
+}
+
+@mixin heart-rate-warning {
+  animation: pulse 1s infinite;
+  border: 2px solid $warning;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 51, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 87, 51, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 87, 51, 0);
+  }
 }

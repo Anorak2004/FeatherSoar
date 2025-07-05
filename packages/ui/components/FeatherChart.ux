@@ -1,0 +1,230 @@
+<template>
+  <div class="chart-container" style="{{containerStyle}}">
+    <text class="chart-title" if="{{title}}">{{title}}</text>
+    <div class="chart-canvas">
+      <!-- 绘制图表的Canvas元素 -->
+      <canvas id="chartCanvas" class="chart-canvas-element" />
+    </div>
+    <div class="chart-legend" if="{{showLegend}}">
+      <div class="legend-item" for="{{legendItems}}">
+        <div class="legend-color" style="background-color: {{$item.color}};"></div>
+        <text class="legend-text">{{$item.label}}</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    // 图表标题
+    title: {
+      default: ''
+    },
+    // 图表类型: 'line', 'bar', 'pie'
+    type: {
+      default: 'line'
+    },
+    // 图表数据
+    data: {
+      default: []
+    },
+    // 图表宽度
+    width: {
+      default: '100%'
+    },
+    // 图表高度
+    height: {
+      default: '200px'
+    },
+    // 是否显示图例
+    showLegend: {
+      default: false,
+      type: Boolean
+    },
+    // 图例项
+    legendItems: {
+      default: []
+    },
+    // 图表颜色
+    colors: {
+      default: ['#33C9AB', '#2B7A9A', '#FF5733', '#4CAF50']
+    }
+  },
+  
+  data: {
+    chartContext: null
+  },
+  
+  computed: {
+    containerStyle() {
+      return `width: ${this.width}; height: ${this.height};`
+    }
+  },
+  
+  onReady() {
+    // 获取canvas上下文
+    const canvas = this.$element('chartCanvas')
+    if (canvas) {
+      this.chartContext = canvas.getContext('2d')
+      this.drawChart()
+    }
+  },
+  
+  methods: {
+    /**
+     * 绘制图表
+     */
+    drawChart() {
+      if (!this.chartContext || !this.data || this.data.length === 0) return
+      
+      // 根据图表类型调用不同的绘制方法
+      switch (this.type) {
+        case 'line':
+          this.drawLineChart()
+          break
+        case 'bar':
+          this.drawBarChart()
+          break
+        case 'pie':
+          this.drawPieChart()
+          break
+        default:
+          this.drawLineChart()
+      }
+    },
+    
+    /**
+     * 绘制折线图
+     */
+    drawLineChart() {
+      const ctx = this.chartContext
+      const data = this.data
+      const canvas = this.$element('chartCanvas')
+      const width = canvas.width
+      const height = canvas.height
+      
+      // 清除画布
+      ctx.clearRect(0, 0, width, height)
+      
+      // 设置坐标系
+      const padding = 20
+      const chartWidth = width - padding * 2
+      const chartHeight = height - padding * 2
+      
+      // 找到数据中的最大值和最小值
+      const values = data.map(item => item.value)
+      const maxValue = Math.max(...values)
+      const minValue = Math.min(...values)
+      
+      // 绘制坐标轴
+      ctx.beginPath()
+      ctx.strokeStyle = '#CCCCCC'
+      ctx.moveTo(padding, padding)
+      ctx.lineTo(padding, height - padding)
+      ctx.lineTo(width - padding, height - padding)
+      ctx.stroke()
+      
+      // 绘制数据线
+      if (data.length > 1) {
+        ctx.beginPath()
+        ctx.strokeStyle = this.colors[0]
+        ctx.lineWidth = 2
+        
+        // 计算第一个点的位置
+        const firstPoint = data[0]
+        const firstX = padding + (chartWidth / (data.length - 1)) * 0
+        const firstY = height - padding - (chartHeight * (firstPoint.value - minValue) / (maxValue - minValue || 1))
+        
+        ctx.moveTo(firstX, firstY)
+        
+        // 绘制剩余点
+        for (let i = 1; i < data.length; i++) {
+          const point = data[i]
+          const x = padding + (chartWidth / (data.length - 1)) * i
+          const y = height - padding - (chartHeight * (point.value - minValue) / (maxValue - minValue || 1))
+          
+          ctx.lineTo(x, y)
+        }
+        
+        ctx.stroke()
+      }
+    },
+    
+    /**
+     * 绘制柱状图
+     */
+    drawBarChart() {
+      // 柱状图实现...
+    },
+    
+    /**
+     * 绘制饼图
+     */
+    drawPieChart() {
+      // 饼图实现...
+    },
+    
+    /**
+     * 更新图表数据
+     */
+    updateChart(newData) {
+      this.data = newData
+      this.drawChart()
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+@import './../../../src/assets/styles/style.scss';
+
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  
+  .chart-title {
+    font-size: $font-normal;
+    color: $dark-grey;
+    margin-bottom: $spacing-sm;
+    text-align: center;
+  }
+  
+  .chart-canvas {
+    flex: 1;
+    width: 100%;
+    
+    .chart-canvas-element {
+      width: 100%;
+      height: 100%;
+    }
+  }
+  
+  .chart-legend {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    margin-top: $spacing-sm;
+    
+    .legend-item {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      margin: 0 $spacing-sm;
+      
+      .legend-color {
+        width: 3 * $size-factor;
+        height: 3 * $size-factor;
+        border-radius: 1.5 * $size-factor;
+        margin-right: $spacing-xs;
+      }
+      
+      .legend-text {
+        font-size: $font-small;
+        color: $dark-grey;
+      }
+    }
+  }
+}
+</style> 

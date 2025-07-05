@@ -1,0 +1,281 @@
+<template>
+  <div class="session-start-page">
+    <div class="header">
+      <text class="title">选择模式</text>
+    </div>
+    
+    <div class="content">
+      <div class="mode-selector">
+        <div class="mode-card {{selectedMode === 'singles' ? 'selected' : ''}}" onclick="selectMode('singles')">
+          <text class="mode-title">单打</text>
+          <text class="mode-desc">单人对战模式</text>
+        </div>
+        
+        <div class="mode-card {{selectedMode === 'doubles' ? 'selected' : ''}}" onclick="selectMode('doubles')">
+          <text class="mode-title">双打</text>
+          <text class="mode-desc">双人对战模式</text>
+        </div>
+        
+        <div class="mode-card {{selectedMode === 'mixed' ? 'selected' : ''}}" onclick="selectMode('mixed')">
+          <text class="mode-title">混双</text>
+          <text class="mode-desc">混合对战模式</text>
+        </div>
+      </div>
+      
+      <div class="options">
+        <div class="option-row">
+          <text class="option-label">心率预警</text>
+          <switch checked="{{heartRateWarning}}" onchange="onHeartRateWarningChange" />
+        </div>
+        
+        <div class="option-row" if="{{heartRateWarning}}">
+          <text class="option-label">心率下限</text>
+          <div class="slider-container">
+            <slider
+              min="50"
+              max="100"
+              step="1"
+              value="{{heartRateMin}}"
+              onchange="onHeartRateMinChange"
+            />
+            <text class="slider-value">{{heartRateMin}}</text>
+          </div>
+        </div>
+        
+        <div class="option-row" if="{{heartRateWarning}}">
+          <text class="option-label">心率上限</text>
+          <div class="slider-container">
+            <slider
+              min="120"
+              max="200"
+              step="1"
+              value="{{heartRateMax}}"
+              onchange="onHeartRateMaxChange"
+            />
+            <text class="slider-value">{{heartRateMax}}</text>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <input
+        class="cancel-btn"
+        type="button"
+        value="取消"
+        onclick="onCancelClick"
+      />
+      <input
+        class="start-btn"
+        type="button"
+        value="开始"
+        onclick="onStartClick"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import { createSession } from '../../../packages/core/types'
+import { getSettings, saveSettings } from '../../../packages/core/utils/storage'
+
+export default {
+  data: {
+    selectedMode: 'singles',
+    heartRateWarning: true,
+    heartRateMin: 60,
+    heartRateMax: 180
+  },
+  
+  onInit() {
+    // 加载用户设置
+    const settings = getSettings()
+    
+    this.heartRateWarning = settings.vibrateOnWarning
+    this.heartRateMin = settings.heartRateMin
+    this.heartRateMax = settings.heartRateMax
+  },
+  
+  methods: {
+    /**
+     * 选择运动模式
+     * @param {string} mode - 运动模式
+     */
+    selectMode(mode) {
+      this.selectedMode = mode
+    },
+    
+    /**
+     * 心率预警开关变化事件
+     * @param {Object} e - 事件对象
+     */
+    onHeartRateWarningChange(e) {
+      this.heartRateWarning = e.checked
+      
+      // 保存设置
+      const settings = getSettings()
+      settings.vibrateOnWarning = e.checked
+      saveSettings(settings)
+    },
+    
+    /**
+     * 心率下限变化事件
+     * @param {Object} e - 事件对象
+     */
+    onHeartRateMinChange(e) {
+      this.heartRateMin = e.progress
+      
+      // 保存设置
+      const settings = getSettings()
+      settings.heartRateMin = e.progress
+      saveSettings(settings)
+    },
+    
+    /**
+     * 心率上限变化事件
+     * @param {Object} e - 事件对象
+     */
+    onHeartRateMaxChange(e) {
+      this.heartRateMax = e.progress
+      
+      // 保存设置
+      const settings = getSettings()
+      settings.heartRateMax = e.progress
+      saveSettings(settings)
+    },
+    
+    /**
+     * 取消按钮点击事件
+     */
+    onCancelClick() {
+      global.router.back()
+    },
+    
+    /**
+     * 开始按钮点击事件
+     */
+    onStartClick() {
+      // 创建新会话
+      const session = createSession(this.selectedMode)
+      
+      // 跳转到仪表盘页面，并传递会话数据
+      global.router.push({
+        uri: '/pages/Dashboard',
+        params: {
+          session: JSON.stringify(session),
+          heartRateWarning: this.heartRateWarning,
+          heartRateMin: this.heartRateMin,
+          heartRateMax: this.heartRateMax
+        }
+      })
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+@import './../../assets/styles/style.scss';
+
+.session-start-page {
+  @include flex-box(column, space-between, center);
+  width: 100%;
+  height: 100%;
+  background-color: $light-grey;
+  padding: $spacing-md;
+  
+  .header {
+    @include flex-box(column, center, center);
+    margin-top: $spacing-lg;
+    
+    .title {
+      font-size: $font-large;
+      color: $dark-grey;
+      font-weight: bold;
+    }
+  }
+  
+  .content {
+    @include flex-box(column, center, center);
+    width: 100%;
+    
+    .mode-selector {
+      width: 100%;
+      margin-bottom: $spacing-lg;
+      
+      .mode-card {
+        @include card;
+        @include flex-box(column, center, flex-start);
+        width: 100%;
+        margin-bottom: $spacing-md;
+        padding: $spacing-lg;
+        border: 2px solid transparent;
+        
+        &.selected {
+          border-color: $brand;
+        }
+        
+        .mode-title {
+          font-size: $font-large;
+          color: $dark-grey;
+          font-weight: bold;
+        }
+        
+        .mode-desc {
+          font-size: $font-small;
+          color: $grey;
+          margin-top: $spacing-xs;
+        }
+      }
+    }
+    
+    .options {
+      width: 100%;
+      
+      .option-row {
+        @include flex-box(row, space-between, center);
+        width: 100%;
+        margin-bottom: $spacing-md;
+        
+        .option-label {
+          font-size: $font-normal;
+          color: $dark-grey;
+        }
+        
+        .slider-container {
+          @include flex-box(row, flex-start, center);
+          flex: 1;
+          margin-left: $spacing-md;
+          
+          slider {
+            flex: 1;
+          }
+          
+          .slider-value {
+            font-size: $font-normal;
+            color: $brand;
+            margin-left: $spacing-sm;
+            width: 10 * $size-factor;
+            text-align: right;
+          }
+        }
+      }
+    }
+  }
+  
+  .footer {
+    @include flex-box(row, space-between, center);
+    width: 100%;
+    margin-bottom: $spacing-xl;
+    
+    .cancel-btn {
+      @include button($grey, $white);
+      width: 45%;
+    }
+    
+    .start-btn {
+      @include button($brand, $white);
+      width: 45%;
+    }
+  }
+}
+</style> 

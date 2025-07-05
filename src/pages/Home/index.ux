@@ -1,0 +1,325 @@
+<template>
+  <div class="home-page">
+    <div class="header">
+      <text class="title">轻羽飞扬</text>
+      <text class="subtitle">羽毛球运动记录</text>
+    </div>
+    
+    <div class="content">
+      <div class="card main-card">
+        <text class="card-title">开始运动</text>
+        <input
+          class="start-btn"
+          type="button"
+          value="开始"
+          onclick="onStartClick"
+        />
+      </div>
+      
+      <div class="card history-card" onclick="onHistoryClick">
+        <text class="card-title">历史记录</text>
+        <text class="card-value">{{historyCount}}</text>
+        <text class="card-label">总场次</text>
+      </div>
+      
+      <div class="card stats-card" onclick="onStatsClick">
+        <text class="card-title">统计数据</text>
+        <div class="stats-row">
+          <div class="stats-item">
+            <text class="stats-value">{{totalStrokes}}</text>
+            <text class="stats-label">总挥拍</text>
+          </div>
+          <div class="stats-item">
+            <text class="stats-value">{{totalCalories}}</text>
+            <text class="stats-label">总消耗(kcal)</text>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <input
+        class="settings-btn"
+        type="button"
+        value="设置"
+        onclick="onSettingsClick"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data: {
+    historyCount: 0,
+    totalStrokes: 0,
+    totalCalories: 0
+  },
+  
+  onInit() {
+    console.log('Home页面初始化')
+    // 直接设置默认值，避免函数调用错误
+    this.historyCount = 0
+    this.totalStrokes = 0
+    this.totalCalories = 0
+    
+    // 如果存储初始化完成，可以尝试加载真实数据
+    if (global.dbInitPromise) {
+      global.dbInitPromise.then(() => {
+        this.loadStatsFromStorage()
+      }).catch(err => {
+        console.error('存储初始化错误:', err)
+      })
+    }
+  },
+  
+  onShow() {
+    // 如果存储初始化完成，可以尝试加载真实数据
+    if (global.dbInitPromise) {
+      global.dbInitPromise.then(() => {
+        this.loadStatsFromStorage()
+      }).catch(err => {
+        console.error('存储初始化错误:', err)
+      })
+    }
+  },
+  
+  methods: {
+    /**
+     * 从存储加载统计数据
+     */
+    loadStatsFromStorage() {
+      try {
+        // 直接使用storage API
+        if (global.storage && typeof global.storage.get === 'function') {
+          global.storage.get({
+            key: 'sessions',
+            success: (data) => {
+              try {
+                // 解析数据
+                const sessions = data ? JSON.parse(data) : [];
+                const validSessions = Array.isArray(sessions) ? sessions : [];
+                
+                // 计算统计数据
+                this.historyCount = validSessions.length;
+                
+                let totalStrokes = 0;
+                let totalCalories = 0;
+                
+                // 遍历会话，确保每个属性都有默认值
+                validSessions.forEach(session => {
+                  // 使用Number确保转换为数字，并提供默认值0
+                  const strokes = Number(session && session.strokes) || 0;
+                  const calories = Number(session && session.calories) || 0;
+                  
+                  totalStrokes += strokes;
+                  totalCalories += calories;
+                });
+                
+                this.totalStrokes = totalStrokes;
+                this.totalCalories = totalCalories;
+              } catch (e) {
+                console.error('解析会话数据错误:', e);
+                this.setDefaultStats();
+              }
+            },
+            fail: () => {
+              this.setDefaultStats();
+            }
+          });
+        } else {
+          this.setDefaultStats();
+        }
+      } catch (e) {
+        console.error('加载统计数据错误:', e);
+        this.setDefaultStats();
+      }
+    },
+    
+    /**
+     * 设置默认统计数据
+     */
+    setDefaultStats() {
+      this.historyCount = 0
+      this.totalStrokes = 0
+      this.totalCalories = 0
+    },
+    
+    /**
+     * 开始按钮点击事件
+     */
+    onStartClick() {
+      try {
+        if (global.router && typeof global.router.push === 'function') {
+          global.router.push({
+            uri: '/pages/SessionStart'
+          })
+        } else {
+          console.log('路由跳转: /pages/SessionStart')
+        }
+      } catch (e) {
+        console.error('开始按钮点击错误:', e)
+      }
+    },
+    
+    /**
+     * 历史记录点击事件
+     */
+    onHistoryClick() {
+      try {
+        if (global.router && typeof global.router.push === 'function') {
+          global.router.push({
+            uri: '/pages/History'
+          })
+        } else {
+          console.log('路由跳转: /pages/History')
+        }
+      } catch (e) {
+        console.error('历史记录点击错误:', e)
+      }
+    },
+    
+    /**
+     * 统计数据点击事件
+     */
+    onStatsClick() {
+      try {
+        if (global.router && typeof global.router.push === 'function') {
+          global.router.push({
+            uri: '/pages/History'
+          })
+        } else {
+          console.log('路由跳转: /pages/History')
+        }
+      } catch (e) {
+        console.error('统计数据点击错误:', e)
+      }
+    },
+    
+    /**
+     * 设置按钮点击事件
+     */
+    onSettingsClick() {
+      try {
+        if (global.router && typeof global.router.push === 'function') {
+          global.router.push({
+            uri: '/pages/Settings'
+          })
+        } else {
+          console.log('路由跳转: /pages/Settings')
+        }
+      } catch (e) {
+        console.error('设置按钮点击错误:', e)
+      }
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+@import './../../assets/styles/style.scss';
+
+.home-page {
+  @include flex-box(column, space-between, center);
+  width: 100%;
+  height: 100%;
+  background-color: $light-grey;
+  padding: $spacing-md;
+  
+  .header {
+    @include flex-box(column, center, center);
+    margin-top: $spacing-xl;
+    
+    .title {
+      font-size: $font-xlarge;
+      color: $brand;
+      font-weight: bold;
+    }
+    
+    .subtitle {
+      font-size: $font-small;
+      color: $dark-grey;
+      margin-top: $spacing-xs;
+    }
+  }
+  
+  .content {
+    @include flex-box(column, center, center);
+    width: 100%;
+    
+    .card {
+      @include card;
+      width: 100%;
+      margin-bottom: $spacing-lg;
+      
+      .card-title {
+        font-size: $font-normal;
+        color: $dark-grey;
+        margin-bottom: $spacing-sm;
+      }
+    }
+    
+    .main-card {
+      @include flex-box(column, center, center);
+      padding: $spacing-xl;
+      
+      .start-btn {
+        @include button($brand, $white);
+        width: 80%;
+        height: 12 * $size-factor;
+        font-size: $font-large;
+        margin-top: $spacing-lg;
+      }
+    }
+    
+    .history-card {
+      @include flex-box(column, center, center);
+      
+      .card-value {
+        font-size: $font-value;
+        color: $brand;
+        font-weight: bold;
+        margin: $spacing-sm 0;
+      }
+      
+      .card-label {
+        font-size: $font-small;
+        color: $grey;
+      }
+    }
+    
+    .stats-card {
+      .stats-row {
+        @include flex-box(row, space-around, center);
+        width: 100%;
+        margin-top: $spacing-sm;
+      }
+      
+      .stats-item {
+        @include flex-box(column, center, center);
+      }
+      
+      .stats-value {
+        font-size: $font-large;
+        color: $brand;
+        font-weight: bold;
+      }
+      
+      .stats-label {
+        font-size: $font-small;
+        color: $grey;
+        margin-top: $spacing-xs;
+      }
+    }
+  }
+  
+  .footer {
+    margin-bottom: $spacing-xl;
+    
+    .settings-btn {
+      @include button($secondary, $white);
+      width: 40 * $size-factor;
+    }
+  }
+}
+</style> 

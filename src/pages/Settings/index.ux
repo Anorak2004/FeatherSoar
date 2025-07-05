@@ -1,0 +1,364 @@
+<!-- 
+  Settings页面 - 应用设置和用户偏好
+-->
+<template>
+  <div class="settings-container">
+    <div class="settings-header">
+      <text class="settings-title">设置</text>
+    </div>
+    
+    <div class="settings-section">
+      <text class="section-title">个人信息</text>
+      <div class="setting-item">
+        <text class="setting-label">姓名</text>
+        <input type="text" class="setting-input" value="{{ userInfo.name }}" onchange="updateName" />
+      </div>
+      <div class="setting-item">
+        <text class="setting-label">性别</text>
+        <div class="gender-selector">
+          <div class="gender-option {{ userInfo.gender === 'male' ? 'selected' : '' }}" onclick="setGender('male')">
+            <text>男</text>
+          </div>
+          <div class="gender-option {{ userInfo.gender === 'female' ? 'selected' : '' }}" onclick="setGender('female')">
+            <text>女</text>
+          </div>
+        </div>
+      </div>
+      <div class="setting-item">
+        <text class="setting-label">出生年份</text>
+        <picker class="date-picker" type="text" range="{{ yearRange }}" selected="{{ yearIndex }}" onchange="updateBirthYear">
+          <text>{{ userInfo.birthYear }}</text>
+        </picker>
+      </div>
+      <div class="setting-item">
+        <text class="setting-label">身高 (cm)</text>
+        <input type="number" class="setting-input" value="{{ userInfo.height }}" onchange="updateHeight" />
+      </div>
+      <div class="setting-item">
+        <text class="setting-label">体重 (kg)</text>
+        <input type="number" class="setting-input" value="{{ userInfo.weight }}" onchange="updateWeight" />
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <text class="section-title">运动偏好</text>
+      <div class="setting-item">
+        <text class="setting-label">默认运动模式</text>
+        <picker class="mode-picker" type="text" range="{{ sportModes }}" selected="{{ modeIndex }}" onchange="updateSportMode">
+          <text>{{ sportSettings.defaultMode }}</text>
+        </picker>
+      </div>
+      <div class="setting-item">
+        <text class="setting-label">运动提醒</text>
+        <switch checked="{{ sportSettings.enableReminder }}" onchange="toggleReminder"></switch>
+      </div>
+      <div class="setting-item" if="{{ sportSettings.enableReminder }}">
+        <text class="setting-label">提醒时间</text>
+        <picker class="time-picker" type="time" value="{{ sportSettings.reminderTime }}" onchange="updateReminderTime">
+          <text>{{ sportSettings.reminderTime }}</text>
+        </picker>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <text class="section-title">数据与隐私</text>
+      <div class="setting-item">
+        <text class="setting-label">同步健康数据</text>
+        <switch checked="{{ dataSettings.syncHealth }}" onchange="toggleHealthSync"></switch>
+      </div>
+      <div class="setting-item">
+        <text class="setting-label">允许离线使用</text>
+        <switch checked="{{ dataSettings.offlineMode }}" onchange="toggleOfflineMode"></switch>
+      </div>
+      <div class="setting-button-container">
+        <button class="clear-data-button" onclick="clearAllData">清除全部数据</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <text class="section-title">关于</text>
+      <div class="setting-item">
+        <text class="setting-label">版本</text>
+        <text class="setting-value">{{ appInfo.version }}</text>
+      </div>
+      <div class="setting-button-container">
+        <button class="about-button" onclick="showAbout">关于轻羽飞扬</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  import storage from '@service/storage'
+  
+  export default {
+    private: {
+      userInfo: {
+        name: '',
+        gender: 'male',
+        birthYear: 1990,
+        height: 170,
+        weight: 65
+      },
+      sportSettings: {
+        defaultMode: '单打',
+        enableReminder: false,
+        reminderTime: '19:00'
+      },
+      dataSettings: {
+        syncHealth: true,
+        offlineMode: false
+      },
+      appInfo: {
+        version: '1.0.0'
+      },
+      yearRange: [],
+      yearIndex: 30,
+      sportModes: ['单打', '双打', '混合'],
+      modeIndex: 0
+    },
+    onInit() {
+      this.generateYearRange()
+      this.loadSettings()
+    },
+    generateYearRange() {
+      const currentYear = new Date().getFullYear()
+      this.yearRange = []
+      
+      for (let year = currentYear - 70; year <= currentYear - 10; year++) {
+        this.yearRange.push(year.toString())
+      }
+      
+      // 设置默认年份索引
+      const defaultYear = 1990
+      this.yearIndex = this.yearRange.indexOf(defaultYear.toString())
+      if (this.yearIndex === -1) {
+        this.yearIndex = 30 // 默认显示中间位置
+      }
+    },
+    loadSettings() {
+      // 加载用户设置
+      storage.getUserSettings()
+        .then(settings => {
+          if (settings) {
+            this.userInfo = settings.userInfo || this.userInfo
+            this.sportSettings = settings.sportSettings || this.sportSettings
+            this.dataSettings = settings.dataSettings || this.dataSettings
+            
+            // 更新选择器索引
+            this.yearIndex = this.yearRange.indexOf(this.userInfo.birthYear.toString())
+            this.modeIndex = this.sportModes.indexOf(this.sportSettings.defaultMode)
+          }
+        })
+        .catch(err => {
+          this.$app.$def.showToast('加载设置失败: ' + err.message)
+        })
+      
+      // 获取应用版本
+      this.appInfo.version = this.$app.$def.manifest.versionName
+    },
+    saveSettings() {
+      const settings = {
+        userInfo: this.userInfo,
+        sportSettings: this.sportSettings,
+        dataSettings: this.dataSettings
+      }
+      
+      storage.saveUserSettings(settings)
+        .then(() => {
+          this.$app.$def.showToast('设置已保存')
+        })
+        .catch(err => {
+          this.$app.$def.showToast('保存设置失败: ' + err.message)
+        })
+    },
+    updateName(e) {
+      this.userInfo.name = e.value
+      this.saveSettings()
+    },
+    setGender(gender) {
+      this.userInfo.gender = gender
+      this.saveSettings()
+    },
+    updateBirthYear(e) {
+      this.yearIndex = e.newSelected
+      this.userInfo.birthYear = parseInt(this.yearRange[e.newSelected])
+      this.saveSettings()
+    },
+    updateHeight(e) {
+      this.userInfo.height = parseInt(e.value)
+      this.saveSettings()
+    },
+    updateWeight(e) {
+      this.userInfo.weight = parseInt(e.value)
+      this.saveSettings()
+    },
+    updateSportMode(e) {
+      this.modeIndex = e.newSelected
+      this.sportSettings.defaultMode = this.sportModes[e.newSelected]
+      this.saveSettings()
+    },
+    toggleReminder(e) {
+      this.sportSettings.enableReminder = e.checked
+      this.saveSettings()
+    },
+    updateReminderTime(e) {
+      this.sportSettings.reminderTime = e.value
+      this.saveSettings()
+    },
+    toggleHealthSync(e) {
+      this.dataSettings.syncHealth = e.checked
+      this.saveSettings()
+    },
+    toggleOfflineMode(e) {
+      this.dataSettings.offlineMode = e.checked
+      this.saveSettings()
+    },
+    clearAllData() {
+      // 显示确认对话框
+      this.$app.$def.confirm({
+        title: '确认清除',
+        message: '确定要清除所有数据吗？此操作无法撤销。',
+        buttons: [
+          {
+            text: '取消',
+            color: '#999999'
+          },
+          {
+            text: '确认',
+            color: '#FF3B30'
+          }
+        ],
+        success: (result) => {
+          if (result.index === 1) {
+            // 用户确认清除
+            storage.clearAllData()
+              .then(() => {
+                this.$app.$def.showToast('数据已清除')
+              })
+              .catch(err => {
+                this.$app.$def.showToast('清除数据失败: ' + err.message)
+              })
+          }
+        }
+      })
+    },
+    showAbout() {
+      this.$app.$def.router.push({
+        uri: 'pages/About'
+      })
+    }
+  }
+</script>
+
+<style>
+  .settings-container {
+    flex-direction: column;
+    padding: 20px;
+    background-color: #F8F8F8;
+  }
+  
+  .settings-header {
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .settings-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333333;
+  }
+  
+  .settings-section {
+    margin-bottom: 30px;
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    padding: 16px;
+    flex-direction: column;
+  }
+  
+  .section-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333333;
+    margin-bottom: 16px;
+  }
+  
+  .setting-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 50px;
+    border-bottom: 1px solid #EEEEEE;
+  }
+  
+  .setting-label {
+    font-size: 16px;
+    color: #333333;
+  }
+  
+  .setting-value {
+    font-size: 16px;
+    color: #999999;
+  }
+  
+  .setting-input {
+    width: 150px;
+    text-align: right;
+    font-size: 16px;
+  }
+  
+  .date-picker, .mode-picker, .time-picker {
+    width: 150px;
+    text-align: right;
+  }
+  
+  .gender-selector {
+    flex-direction: row;
+  }
+  
+  .gender-option {
+    width: 60px;
+    height: 30px;
+    border-radius: 15px;
+    margin-left: 10px;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #CCCCCC;
+    background-color: #FFFFFF;
+  }
+  
+  .gender-option.selected {
+    background-color: #33C9AB;
+    border: none;
+  }
+  
+  .gender-option.selected text {
+    color: #FFFFFF;
+  }
+  
+  .setting-button-container {
+    margin-top: 16px;
+    align-items: center;
+  }
+  
+  .clear-data-button {
+    width: 200px;
+    height: 46px;
+    border-radius: 23px;
+    background-color: #FF3B30;
+    color: #FFFFFF;
+    font-size: 16px;
+    font-weight: bold;
+  }
+  
+  .about-button {
+    width: 200px;
+    height: 46px;
+    border-radius: 23px;
+    background-color: #33C9AB;
+    color: #FFFFFF;
+    font-size: 16px;
+    font-weight: bold;
+  }
+</style> 

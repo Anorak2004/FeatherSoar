@@ -1,0 +1,295 @@
+<!-- 
+  Report页面 - 显示运动结束后的统计报告
+  包含运动数据统计、图表展示和备注功能
+-->
+<template>
+  <div class="report-container">
+    <div class="report-header">
+      <text class="report-title">运动报告</text>
+      <text class="report-date">{{ formatDate(sessionData.endTime) }}</text>
+    </div>
+    
+    <div class="report-stats-grid">
+      <div class="stat-card">
+        <text class="stat-label">运动时长</text>
+        <text class="stat-value">{{ formatDuration(sessionData.duration) }}</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">消耗卡路里</text>
+        <text class="stat-value">{{ sessionData.calories }}千卡</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">挥拍次数</text>
+        <text class="stat-value">{{ sessionData.strokes }}</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">平均心率</text>
+        <text class="stat-value">{{ sessionData.avgHeartRate }}bpm</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">最高拍速</text>
+        <text class="stat-value">{{ sessionData.maxSpeed }}km/h</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">杀球次数</text>
+        <text class="stat-value">{{ sessionData.smashes }}</text>
+      </div>
+    </div>
+    
+    <div class="ratio-chart">
+      <text class="chart-title">正反手占比</text>
+      <!-- 实际项目中这里会替换为饼图组件 -->
+      <div class="chart-placeholder">
+        <text>正手: {{ sessionData.forehand }}次</text>
+        <text>反手: {{ sessionData.backhand }}次</text>
+      </div>
+    </div>
+    
+    <div class="notes-section">
+      <text class="notes-label">添加备注</text>
+      <textarea class="notes-input" placeholder="记录今天的训练感受..." maxlength="200"></textarea>
+    </div>
+    
+    <div class="action-buttons">
+      <button class="save-btn" onclick="saveReport">保存</button>
+      <button class="share-btn" onclick="shareReport">分享</button>
+    </div>
+  </div>
+</template>
+
+<script>
+  import { saveReport, getSessionById } from '../../../packages/service/storage'
+  import formatter from '../../../packages/core/utils/formatter'
+  import dateTime from '../../../packages/core/utils/dateTime'
+  
+  export default {
+    private: {
+      sessionData: {
+        id: '',
+        duration: 0,
+        calories: 0,
+        strokes: 0,
+        smashes: 0,
+        forehand: 0,
+        backhand: 0,
+        avgHeartRate: 0,
+        maxSpeed: 0,
+        endTime: Date.now()
+      },
+      sessionId: null
+    },
+    onInit() {
+      // 获取路由参数中的会话ID
+      const params = this.$app.$def.router.getParams()
+      this.sessionId = params && params.id
+      
+      // 加载会话数据
+      this.loadSessionData()
+    },
+    loadSessionData() {
+      // 如果有会话ID，则获取该会话的数据
+      if (this.sessionId) {
+        // 等待数据库初始化完成后再加载数据
+        if (global.dbInitPromise) {
+          global.dbInitPromise
+            .then(() => {
+              return getSessionById(this.sessionId)
+            })
+            .then(session => {
+              if (session) {
+                // 将数据库字段映射到组件属性
+                this.sessionData = {
+                  id: session.id,
+                  mode: session.mode,
+                  duration: session.duration,
+                  calories: session.calories || 0,
+                  strokes: session.strokes || 0,
+                  smashes: session.smashes || 0,
+                  forehand: session.forehand || 0,
+                  backhand: session.backhand || 0,
+                  avgHeartRate: session.avg_heart_rate || 0,
+                  maxHeartRate: session.max_heart_rate || 0,
+                  minHeartRate: session.min_heart_rate || 0,
+                  maxSpeed: session.max_speed || 0,
+                  startTime: session.start_time,
+                  endTime: session.end_time,
+                  notes: session.notes
+                }
+              }
+            })
+            .catch(err => {
+              console.error('加载会话数据失败:', err)
+              this.$app.$def.showToast('加载会话数据失败: ' + err.message)
+            })
+        } else {
+          console.error('数据库初始化Promise不存在')
+          this.$app.$def.showToast('数据库初始化异常')
+        }
+      } else {
+        // 如果没有会话ID，则显示示例数据
+        this.showDemoData()
+      }
+    },
+    showDemoData() {
+      // 示例数据用于展示
+      this.sessionData = {
+        id: 'demo_' + Date.now(),
+        duration: 45 * 60, // 45分钟
+        calories: 287,
+        strokes: 142,
+        smashes: 18,
+        forehand: 94,
+        backhand: 48,
+        avgHeartRate: 132,
+        maxSpeed: 85,
+        endTime: Date.now()
+      }
+    },
+    formatDate(timestamp) {
+      return dateTime.formatDate(timestamp, 'YYYY-MM-DD HH:mm')
+    },
+    formatDuration(seconds) {
+      return formatter.formatDuration(seconds)
+    },
+    saveReport() {
+      // 保存报告到本地存储
+      if (global.dbInitPromise) {
+        global.dbInitPromise
+          .then(() => {
+            return saveReport(this.sessionData)
+          })
+          .then(() => {
+            // 提示保存成功
+            this.$app.$def.showToast('报告已保存')
+          })
+          .catch(err => {
+            this.$app.$def.showToast('保存失败: ' + err.message)
+          })
+      } else {
+        this.$app.$def.showToast('数据库初始化异常')
+      }
+    },
+    shareReport() {
+      // 在实际应用中，这里会调用分享API
+      this.$app.$def.showToast('分享功能开发中')
+    }
+  }
+</script>
+
+<style>
+  .report-container {
+    flex-direction: column;
+    padding: 20px;
+  }
+  
+  .report-header {
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  
+  .report-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333333;
+  }
+  
+  .report-date {
+    font-size: 14px;
+    color: #666666;
+    margin-top: 4px;
+  }
+  
+  .report-stats-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  .stat-card {
+    width: 33%;
+    height: 80px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  
+  .stat-label {
+    font-size: 14px;
+    color: #666666;
+    margin-bottom: 4px;
+  }
+  
+  .stat-value {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333333;
+  }
+  
+  .ratio-chart {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .chart-title {
+    font-size: 18px;
+    color: #333333;
+    margin-bottom: 10px;
+  }
+  
+  .chart-placeholder {
+    width: 100%;
+    height: 100px;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    border: 1px solid #CCCCCC;
+    border-radius: 8px;
+  }
+  
+  .notes-section {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    flex-direction: column;
+  }
+  
+  .notes-label {
+    font-size: 16px;
+    color: #333333;
+    margin-bottom: 8px;
+  }
+  
+  .notes-input {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #CCCCCC;
+    height: 100px;
+  }
+  
+  .action-buttons {
+    flex-direction: row;
+    justify-content: space-around;
+    margin-top: 20px;
+  }
+  
+  .save-btn, .share-btn {
+    width: 140px;
+    height: 46px;
+    border-radius: 23px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #FFFFFF;
+  }
+  
+  .save-btn {
+    background-color: #33C9AB;
+  }
+  
+  .share-btn {
+    background-color: #4285F4;
+  }
+</style> 

@@ -1,9 +1,35 @@
-$brand: #09ba07;
+// 主题色
+$brand: #33C9AB;
+$secondary: #2B7A9A;
+$warning: #FF5733;
+$success: #4CAF50;
 
+// 基础色
 $white: #ffffff;
 $black: #000000;
 $grey: #9393aa;
+$light-grey: #f5f5f5;
+$dark-grey: #333333;
 $red: #fa0101;
-$green: #ffff00;
 
+// 尺寸因子
 $size-factor: 5px;
+
+// 控件尺寸
+$button-height: 8 * $size-factor;  // 40px
+$touch-target: 9 * $size-factor;   // 45px
+$card-radius: 4 * $size-factor;    // 20px
+
+// 文字大小
+$font-small: 3 * $size-factor;     // 15px
+$font-normal: 4 * $size-factor;    // 20px
+$font-large: 5 * $size-factor;     // 25px
+$font-xlarge: 7 * $size-factor;    // 35px
+$font-value: 8 * $size-factor;     // 40px
+
+// 间距
+$spacing-xs: 1 * $size-factor;     // 5px
+$spacing-sm: 2 * $size-factor;     // 10px
+$spacing-md: 3 * $size-factor;     // 15px
+$spacing-lg: 4 * $size-factor;     // 20px
+$spacing-xl: 6 * $size-factor;     // 30px
