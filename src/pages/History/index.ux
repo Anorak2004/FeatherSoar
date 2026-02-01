@@ -5,6 +5,47 @@
   <div class="history-container">
     <div class="history-header">
       <text class="history-title">历史记录</text>
+      <div class="period-tabs">
+        <text class="tab-item" onclick="setPeriod('week')" style="color: {{ period === 'week' ? '#33C9AB' : '#666666' }}">周</text>
+        <text class="tab-item" onclick="setPeriod('month')" style="color: {{ period === 'month' ? '#33C9AB' : '#666666' }}">月</text>
+        <text class="tab-item" onclick="setPeriod('year')" style="color: {{ period === 'year' ? '#33C9AB' : '#666666' }}">年</text>
+      </div>
+    </div>
+
+    <div class="stats-summary" if="{{ showStats }}">
+      <div class="stat-card">
+        <text class="stat-label">总时长</text>
+        <text class="stat-value">{{ formatDuration(stats.totalDuration) }}</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">总卡路里</text>
+        <text class="stat-value">{{ stats.totalCalories }}千卡</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">总挥拍</text>
+        <text class="stat-value">{{ stats.totalStrokes }}</text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">平均心率</text>
+        <text class="stat-value">{{ stats.avgHeartRate }}bpm</text>
+      </div>
+    </div>
+
+    <div class="stats-chart" if="{{ showStats }}">
+      <text class="chart-title">心率/拍速趋势</text>
+      <div class="chart-canvas stats-chart-canvas">
+        <canvas id="statsTrendChart" class="stats-chart-inner"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div class="legend-color heart-color"></div>
+          <text class="legend-text">心率</text>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color speed-color"></div>
+          <text class="legend-text">拍速</text>
+        </div>
+      </div>
     </div>
     
     <list class="history-list">
@@ -47,7 +88,7 @@
 </template>
 
 <script>
-  import { getHistoryList } from '../../../packages/service/storage'
+  import { getHistoryList, getStatsByRange } from '../../../packages/service/storage'
   import dateTime from '../../../packages/core/utils/dateTime'
   import formatter from '../../../packages/core/utils/formatter'
   
@@ -57,14 +98,34 @@
       isLoading: true,
       page: 1,
       pageSize: 20,
-      hasMore: true
+      hasMore: true,
+      period: 'week',
+      showStats: true,
+      stats: {
+        totalDuration: 0,
+        totalCalories: 0,
+        totalStrokes: 0,
+        avgHeartRate: 0,
+        heartRateSeries: [],
+        speedSeries: []
+      },
+      chartReady: false
     },
     onInit() {
       this.loadHistory()
+      this.loadStats()
     },
     onShow() {
       // 每次页面显示时刷新数据
       this.refreshHistory()
+      this.loadStats()
+    },
+    onReady() {
+      this.chartReady = true
+      this.refreshStatsChart()
+    },
+    onDestroy() {
+      this.chartReady = false
     },
     loadHistory() {
       this.isLoading = true
@@ -111,6 +172,104 @@
         this.loadHistory()
       }
     },
+    setPeriod(period) {
+      if (this.period === period) return
+      this.period = period
+      this.loadStats()
+    },
+    loadStats() {
+      const range = this.getRangeByPeriod(this.period)
+      if (!range) return
+
+      if (global.dbInitPromise) {
+        global.dbInitPromise
+          .then(() => getStatsByRange(range.start, range.end))
+          .then(stats => {
+            this.stats = stats
+            this.refreshStatsChart()
+          })
+          .catch(err => {
+            console.error('加载统计失败:', err)
+          })
+      }
+    },
+    refreshStatsChart() {
+      if (!this.chartReady) return
+      this.$nextTick(() => {
+        this.drawTrendChart('statsTrendChart', this.stats.heartRateSeries, this.stats.speedSeries)
+      })
+    },
+    drawTrendChart(canvasId, heartRateSeries, speedSeries) {
+      const canvas = this.$element(canvasId)
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      const width = canvas.width
+      const height = canvas.height
+      ctx.clearRect(0, 0, width, height)
+
+      if (!heartRateSeries.length && !speedSeries.length) {
+        ctx.strokeStyle = '#DDDDDD'
+        ctx.strokeRect(4, 4, width - 8, height - 8)
+        return
+      }
+
+      const allPoints = heartRateSeries.concat(speedSeries)
+      const minTime = Math.min.apply(null, allPoints.map(point => point.t))
+      const maxTime = Math.max.apply(null, allPoints.map(point => point.t))
+      const padding = 8
+
+      const drawLine = (series, color, minValue, maxValue) => {
+        if (!series.length) return
+        ctx.beginPath()
+        series.forEach((point, index) => {
+          const x = padding + ((point.t - minTime) / (maxTime - minTime || 1)) * (width - padding * 2)
+          const y = height - padding - ((point.v - minValue) / (maxValue - minValue || 1)) * (height - padding * 2)
+          if (index === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        })
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+
+      const heartValues = heartRateSeries.map(point => point.v)
+      const speedValues = speedSeries.map(point => point.v)
+      const heartMin = Math.min.apply(null, heartValues.length ? heartValues : [0])
+      const heartMax = Math.max.apply(null, heartValues.length ? heartValues : [1])
+      const speedMin = Math.min.apply(null, speedValues.length ? speedValues : [0])
+      const speedMax = Math.max.apply(null, speedValues.length ? speedValues : [1])
+
+      drawLine(heartRateSeries, '#E74C3C', heartMin, heartMax)
+      drawLine(speedSeries, '#3498DB', speedMin, speedMax)
+    },
+    getRangeByPeriod(period) {
+      const now = new Date()
+      if (period === 'week') {
+        const day = now.getDay() || 7
+        const start = new Date(now)
+        start.setDate(now.getDate() - day + 1)
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(start)
+        end.setDate(start.getDate() + 7)
+        return { start: start.getTime(), end: end.getTime() }
+      }
+      if (period === 'month') {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1)
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        return { start: start.getTime(), end: end.getTime() }
+      }
+      if (period === 'year') {
+        const start = new Date(now.getFullYear(), 0, 1)
+        const end = new Date(now.getFullYear() + 1, 0, 1)
+        return { start: start.getTime(), end: end.getTime() }
+      }
+      return null
+    },
     formatDate(timestamp) {
       return dateTime.formatDate(timestamp, 'YYYY-MM-DD')
     },
@@ -139,6 +298,64 @@
   .history-header {
     padding: 20px;
     align-items: center;
+  }
+
+  .period-tabs {
+    flex-direction: row;
+    margin-top: 8px;
+  }
+
+  .tab-item {
+    font-size: 14px;
+    margin: 0 10px;
+  }
+
+  .stats-summary {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0 20px 10px 20px;
+  }
+
+  .stats-summary .stat-card {
+    width: 50%;
+    height: 60px;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .stats-summary .stat-label {
+    font-size: 12px;
+    color: #666666;
+  }
+
+  .stats-summary .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333333;
+  }
+
+  .stats-chart {
+    padding: 0 20px 20px 20px;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stats-chart-canvas {
+    height: 160px;
+  }
+
+  .stats-chart-inner {
+    width: 100%;
+    height: 100%;
+  }
+
+  .heart-color {
+    background-color: #E74C3C;
+  }
+
+  .speed-color {
+    background-color: #3498DB;
   }
   
   .history-title {

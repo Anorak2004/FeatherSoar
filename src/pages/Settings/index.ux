@@ -141,13 +141,15 @@
       storage.getUserSettings()
         .then(settings => {
           if (settings) {
-            this.userInfo = settings.userInfo || this.userInfo
-            this.sportSettings = settings.sportSettings || this.sportSettings
-            this.dataSettings = settings.dataSettings || this.dataSettings
+            this.userInfo = { ...this.userInfo, ...(settings.userInfo || {}) }
+            this.sportSettings = { ...this.sportSettings, ...(settings.sportSettings || {}) }
+            this.dataSettings = { ...this.dataSettings, ...(settings.dataSettings || {}) }
             
             // 更新选择器索引
-            this.yearIndex = this.yearRange.indexOf(this.userInfo.birthYear.toString())
-            this.modeIndex = this.sportModes.indexOf(this.sportSettings.defaultMode)
+            const yearIdx = this.yearRange.indexOf(this.userInfo.birthYear.toString())
+            this.yearIndex = yearIdx >= 0 ? yearIdx : this.yearIndex
+            const modeIdx = this.sportModes.indexOf(this.sportSettings.defaultMode)
+            this.modeIndex = modeIdx >= 0 ? modeIdx : this.modeIndex
           }
         })
         .catch(err => {

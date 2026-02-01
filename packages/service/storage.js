@@ -4,6 +4,27 @@
  */
 import dbManager from '../core/utils/database'
 
+function serializeSeries(series) {
+  if (!series || !Array.isArray(series)) return null
+  try {
+    return JSON.stringify(series)
+  } catch (e) {
+    console.error('序列化失败:', e)
+    return null
+  }
+}
+
+function parseSeries(payload) {
+  if (!payload) return []
+  if (Array.isArray(payload)) return payload
+  try {
+    return JSON.parse(payload)
+  } catch (e) {
+    console.error('解析序列失败:', e)
+    return []
+  }
+}
+
 /**
  * 保存会话数据到数据库
  * @param {Object} session - 会话数据
@@ -17,14 +38,15 @@ export function saveSession(session) {
         INSERT INTO sessions (
           mode, start_time, end_time, duration, calories, 
           max_speed, avg_heart_rate, max_heart_rate, min_heart_rate, 
-          strokes, smashes, forehand, backhand, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          strokes, smashes, forehand, backhand, notes, heart_rate_series, speed_series, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       
       // 准备参数
+      const now = Date.now()
       const params = [
         session.mode || 'singles',
-        session.startTime || Date.now(),
+        session.startTime || now,
         session.endTime || 0,
         session.duration || 0,
         session.calories || 0,
@@ -36,7 +58,10 @@ export function saveSession(session) {
         session.smashes || 0,
         session.forehand || 0,
         session.backhand || 0,
-        session.notes || ''
+        session.notes || '',
+        serializeSeries(session.heartRateSeries || session.heart_rate_series),
+        serializeSeries(session.speedSeries || session.speed_series),
+        now
       ]
       
       // 执行SQL
@@ -46,7 +71,7 @@ export function saveSession(session) {
       })
       .then(data => {
         console.log('会话保存成功', data)
-        resolve(data.insertId || 0)
+        resolve((data && data.insertId) || 0)
       })
       .catch(err => {
         console.error('会话保存失败:', err)
@@ -84,7 +109,13 @@ export function getAllSessions(limit = 0, offset = 0) {
         sql
       })
       .then(data => {
-        resolve(data && data.rows ? data.rows : [])
+        const rows = data && data.rows ? data.rows : []
+        const formatted = rows.map(item => ({
+          ...item,
+          heartRateSeries: parseSeries(item.heart_rate_series),
+          speedSeries: parseSeries(item.speed_series)
+        }))
+        resolve(formatted)
       })
       .catch(err => {
         console.error('获取会话失败:', err)
@@ -147,7 +178,9 @@ export function getHistoryList(page = 1, pageSize = 20) {
               maxSpeed: item.max_speed || 0,
               smashes: item.smashes || 0,
               forehand: item.forehand || 0,
-              backhand: item.backhand || 0
+              backhand: item.backhand || 0,
+              heartRateSeries: parseSeries(item.heart_rate_series),
+              speedSeries: parseSeries(item.speed_series)
             }
           })
           
@@ -186,6 +219,115 @@ export function getHistoryList(page = 1, pageSize = 20) {
 }
 
 /**
+ * 获取指定时间范围内的统计数据
+ * @param {number} startTime - 开始时间戳（毫秒）
+ * @param {number} endTime - 结束时间戳（毫秒）
+ * @returns {Promise} 统计数据Promise
+ * @returns {Promise<{totalDuration:number,totalCalories:number,totalStrokes:number,avgHeartRate:number,heartRateSeries:Array<{t:number,v:number}>,speedSeries:Array<{t:number,v:number}>}>} 统计结果
+ * 说明：心率/拍速序列以会话 start_time 为横轴；心率使用 avg_heart_rate，拍速使用 max_speed；avgHeartRate 为时长加权平均。
+ */
+export function getStatsByRange(startTime, endTime) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!startTime || !endTime || isNaN(startTime) || isNaN(endTime)) {
+        resolve({
+          totalDuration: 0,
+          totalCalories: 0,
+          totalStrokes: 0,
+          avgHeartRate: 0,
+          heartRateSeries: [],
+          speedSeries: []
+        })
+        return
+      }
+
+      const sql = `SELECT * FROM sessions WHERE start_time >= ? AND start_time < ? ORDER BY start_time ASC`
+
+      dbManager.executeSql({
+        sql,
+        args: [startTime, endTime]
+      })
+      .then(data => {
+        const rows = data && data.rows ? data.rows : []
+        if (!rows.length) {
+          resolve({
+            totalDuration: 0,
+            totalCalories: 0,
+            totalStrokes: 0,
+            avgHeartRate: 0,
+            heartRateSeries: [],
+            speedSeries: []
+          })
+          return
+        }
+
+        let totalDuration = 0
+        let totalCalories = 0
+        let totalStrokes = 0
+        let totalHeartWeighted = 0
+
+        const heartRateSeries = []
+        const speedSeries = []
+
+        rows.forEach(item => {
+          const duration = item.duration || 0
+          const calories = item.calories || 0
+          const strokes = item.strokes || 0
+          const avgHeartRate = item.avg_heart_rate || 0
+          const maxSpeed = item.max_speed || 0
+
+          totalDuration += duration
+          totalCalories += calories
+          totalStrokes += strokes
+          totalHeartWeighted += avgHeartRate * duration
+
+          heartRateSeries.push({
+            t: item.start_time,
+            v: avgHeartRate
+          })
+          speedSeries.push({
+            t: item.start_time,
+            v: maxSpeed
+          })
+        })
+
+        const avgHeartRate = totalDuration ? Math.round(totalHeartWeighted / totalDuration) : 0
+
+        resolve({
+          totalDuration,
+          totalCalories: Math.round(totalCalories),
+          totalStrokes,
+          avgHeartRate,
+          heartRateSeries,
+          speedSeries
+        })
+      })
+      .catch(err => {
+        console.error('获取统计数据失败:', err)
+        resolve({
+          totalDuration: 0,
+          totalCalories: 0,
+          totalStrokes: 0,
+          avgHeartRate: 0,
+          heartRateSeries: [],
+          speedSeries: []
+        })
+      })
+    } catch (e) {
+      console.error('获取统计数据出错:', e.message)
+      resolve({
+        totalDuration: 0,
+        totalCalories: 0,
+        totalStrokes: 0,
+        avgHeartRate: 0,
+        heartRateSeries: [],
+        speedSeries: []
+      })
+    }
+  })
+}
+
+/**
  * 获取单个会话数据
  * @param {number} sessionId - 会话ID
  * @returns {Promise} 会话数据Promise
@@ -209,7 +351,12 @@ export function getSessionById(sessionId) {
       })
       .then(data => {
         if (data && data.rows && data.rows.length > 0) {
-          resolve(data.rows[0])
+          const row = data.rows[0]
+          resolve({
+            ...row,
+            heartRateSeries: parseSeries(row.heart_rate_series),
+            speedSeries: parseSeries(row.speed_series)
+          })
         } else {
           reject(new Error('未找到指定会话'))
         }
@@ -244,16 +391,28 @@ export function updateSession(sessionId, updates) {
         reject(new Error('无效的更新数据'))
         return
       }
+
+      const normalizedUpdates = { ...updates }
+
+      if (Object.prototype.hasOwnProperty.call(normalizedUpdates, 'heartRateSeries')) {
+        normalizedUpdates.heart_rate_series = serializeSeries(normalizedUpdates.heartRateSeries)
+        delete normalizedUpdates.heartRateSeries
+      }
+
+      if (Object.prototype.hasOwnProperty.call(normalizedUpdates, 'speedSeries')) {
+        normalizedUpdates.speed_series = serializeSeries(normalizedUpdates.speedSeries)
+        delete normalizedUpdates.speedSeries
+      }
       
       // 构建更新字段
       const fields = []
       const values = []
       
-      Object.keys(updates).forEach(key => {
+      Object.keys(normalizedUpdates).forEach(key => {
         // 转换驼峰命名为下划线命名
         const fieldName = key.replace(/([A-Z])/g, '_$1').toLowerCase()
         fields.push(`${fieldName} = ?`)
-        values.push(updates[key])
+        values.push(normalizedUpdates[key])
       })
       
       if (fields.length === 0) {
@@ -265,7 +424,8 @@ export function updateSession(sessionId, updates) {
       values.push(sessionId)
       
       // 构建SQL语句
-      const sql = `UPDATE sessions SET ${fields.join(', ')} WHERE id = ?`
+      const sql = `UPDATE sessions SET ${fields.join(', ')}, updated_at = ? WHERE id = ?`
+      values.splice(values.length - 1, 0, Date.now())
       
       // 执行SQL
       dbManager.executeSql({
@@ -328,7 +488,29 @@ export function deleteSession(sessionId) {
  * @returns {Promise} 操作结果Promise
  */
 export function saveReport(sessionData) {
-  // 目前直接调用saveSession，后续可能会有不同的处理
+  if (sessionData && sessionData.id) {
+    const updates = {
+      mode: sessionData.mode,
+      startTime: sessionData.startTime,
+      endTime: sessionData.endTime,
+      duration: sessionData.duration,
+      calories: sessionData.calories,
+      maxSpeed: sessionData.maxSpeed,
+      avgHeartRate: sessionData.avgHeartRate,
+      maxHeartRate: sessionData.maxHeartRate,
+      minHeartRate: sessionData.minHeartRate,
+      strokes: sessionData.strokes,
+      smashes: sessionData.smashes,
+      forehand: sessionData.forehand,
+      backhand: sessionData.backhand,
+      notes: sessionData.notes,
+      heartRateSeries: sessionData.heartRateSeries || sessionData.heart_rate_series,
+      speedSeries: sessionData.speedSeries || sessionData.speed_series
+    }
+
+    return updateSession(sessionData.id, updates).then(() => sessionData.id)
+  }
+
   return saveSession(sessionData)
 }
 
@@ -338,16 +520,29 @@ export function saveReport(sessionData) {
  */
 export function getUserSettings() {
   return new Promise((resolve) => {
-    // 目前返回默认设置，后续可能会从数据库或存储中获取
-    resolve({
-      heartRateMin: global.CONSTANTS.HEART_RATE.MIN,
-      heartRateMax: global.CONSTANTS.HEART_RATE.MAX,
-      defaultMode: global.CONSTANTS.MODE.SINGLES,
-      vibrationEnabled: true,
-      soundEnabled: true,
-      autoEndSession: true,
-      autoEndTimeout: 300 // 5分钟无活动自动结束
+    const sql = 'SELECT data FROM user_settings WHERE id = 1'
+
+    dbManager.executeSql({
+      sql
     })
+      .then(data => {
+        const row = data && data.rows && data.rows[0] ? data.rows[0] : null
+        if (!row || !row.data) {
+          resolve(null)
+          return
+        }
+
+        try {
+          resolve(JSON.parse(row.data))
+        } catch (e) {
+          console.error('解析用户设置失败:', e.message)
+          resolve(null)
+        }
+      })
+      .catch(err => {
+        console.error('获取用户设置失败:', err)
+        resolve(null)
+      })
   })
 }
 
@@ -357,9 +552,24 @@ export function getUserSettings() {
  * @returns {Promise} 操作结果Promise
  */
 export function saveUserSettings(settings) {
-  return new Promise((resolve) => {
-    // 目前直接返回成功，后续可能会保存到数据库或存储中
-    resolve(true)
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(settings || {})
+    const now = Date.now()
+    const sql = `
+      INSERT INTO user_settings (id, data, updated_at)
+      VALUES (1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
+    `
+
+    dbManager.executeSql({
+      sql,
+      args: [payload, now]
+    })
+      .then(() => resolve(true))
+      .catch(err => {
+        console.error('保存用户设置失败:', err)
+        reject(err)
+      })
   })
 }
 

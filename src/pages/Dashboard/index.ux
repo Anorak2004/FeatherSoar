@@ -112,6 +112,8 @@ import {
   formatDuration
 } from '../../../packages/core/utils/dateTime'
 
+import { saveSession } from '../../../packages/service/storage'
+
 export default {
   data: {
     // 会话数据
@@ -458,14 +460,46 @@ export default {
       this.session.smashes = strokeStats.smashCount
       this.session.forehand = strokeStats.forehandCount
       this.session.backhand = strokeStats.backhandCount
+      this.session.heartRateSeries = this.chartData.heartRate.map(point => ({
+        t: point.timestamp,
+        v: point.value
+      }))
+      this.session.speedSeries = this.chartData.speed.map(point => ({
+        t: point.timestamp,
+        v: point.value
+      }))
       
-      // 跳转到报告页面
-      global.router.push({
-        uri: '/pages/Report',
-        params: {
-          session: JSON.stringify(this.session)
-        }
-      })
+      // 保存会话后跳转报告页
+      if (global.dbInitPromise) {
+        global.dbInitPromise
+          .then(() => saveSession(this.session))
+          .then(insertId => {
+            this.session.id = insertId || this.session.id
+            global.router.push({
+              uri: '/pages/Report',
+              params: {
+                id: this.session.id,
+                session: JSON.stringify(this.session)
+              }
+            })
+          })
+          .catch(err => {
+            console.error('保存会话失败:', err)
+            global.router.push({
+              uri: '/pages/Report',
+              params: {
+                session: JSON.stringify(this.session)
+              }
+            })
+          })
+      } else {
+        global.router.push({
+          uri: '/pages/Report',
+          params: {
+            session: JSON.stringify(this.session)
+          }
+        })
+      }
     }
   }
 }

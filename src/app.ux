@@ -3,6 +3,7 @@
  * 轻羽飞扬 - 应用入口文件
  */
 import './global.js'
+import dbManager from '../packages/core/utils/database'
 
 export default {
   /**
@@ -10,79 +11,30 @@ export default {
    */
   onCreate() {
     console.log('FeatherSoar App Created')
-    
-    // 初始化存储
+
     try {
-      // 确保storage API可用
-      if (global.storage) {
-        console.log('存储API可用')
-        
-        // 创建一个已解析的Promise
-        global.dbInitPromise = Promise.resolve()
-          .then(() => {
-            console.log('存储初始化成功')
-            return this.createSessionsStorage()
-          })
-          .catch(err => {
-            console.error('存储初始化错误:', err)
-            return Promise.resolve()
-          })
-      } else {
-        console.log('存储API不可用')
-        global.dbInitPromise = Promise.resolve()
-      }
+      global.dbInitPromise = this.initDatabase()
     } catch (e) {
       console.error('应用初始化错误:', e)
-      global.dbInitPromise = Promise.resolve()
+      global.dbInitPromise = Promise.resolve(false)
     }
-    
+
     // 注册全局错误处理
     global.onerror = (error) => {
       console.error(`全局错误: ${error.message}`)
       return true
     }
   },
-  
+
   /**
-   * 确保会话存储已创建
+   * 初始化数据库
    */
-  createSessionsStorage() {
-    return new Promise((resolve) => {
-      try {
-        if (global.storage && typeof global.storage.get === 'function') {
-          global.storage.get({
-            key: 'sessions',
-            success: (data) => {
-              // 如果不存在，创建一个空数组
-              if (!data) {
-                global.storage.set({
-                  key: 'sessions',
-                  value: JSON.stringify([]),
-                  success: () => resolve(),
-                  fail: () => resolve()
-                })
-              } else {
-                resolve()
-              }
-            },
-            fail: () => {
-              // 创建一个空数组
-              global.storage.set({
-                key: 'sessions',
-                value: JSON.stringify([]),
-                success: () => resolve(),
-                fail: () => resolve()
-              })
-            }
-          })
-        } else {
-          resolve()
-        }
-      } catch (e) {
-        console.error('创建会话存储错误:', e)
-        resolve()
-      }
-    })
+  initDatabase() {
+    return dbManager.init()
+      .catch(err => {
+        console.error('数据库初始化错误:', err)
+        return false
+      })
   },
   
   /**

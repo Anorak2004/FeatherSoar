@@ -38,16 +38,59 @@
     
     <div class="ratio-chart">
       <text class="chart-title">正反手占比</text>
-      <!-- 实际项目中这里会替换为饼图组件 -->
-      <div class="chart-placeholder">
-        <text>正手: {{ sessionData.forehand }}次</text>
-        <text>反手: {{ sessionData.backhand }}次</text>
+      <div class="chart-canvas">
+        <canvas id="forehandChart" class="ratio-canvas"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div class="legend-color forehand-color"></div>
+          <text class="legend-text">正手 {{ sessionData.forehand }}次</text>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color backhand-color"></div>
+          <text class="legend-text">反手 {{ sessionData.backhand }}次</text>
+        </div>
+      </div>
+    </div>
+
+    <div class="ratio-chart">
+      <text class="chart-title">进攻/防守占比</text>
+      <div class="chart-canvas">
+        <canvas id="offenseChart" class="ratio-canvas"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div class="legend-color offense-color"></div>
+          <text class="legend-text">进攻 {{ sessionData.smashes }}次</text>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color defense-color"></div>
+          <text class="legend-text">防守 {{ getDefenseCount() }}次</text>
+        </div>
+      </div>
+      <text class="chart-note">口径：进攻=杀球，防守=挥拍-杀球</text>
+    </div>
+
+    <div class="trend-chart">
+      <text class="chart-title">心率/拍速趋势</text>
+      <div class="chart-canvas trend-canvas">
+        <canvas id="trendChart" class="trend-canvas-inner"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div class="legend-color heart-color"></div>
+          <text class="legend-text">心率</text>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color speed-color"></div>
+          <text class="legend-text">拍速</text>
+        </div>
       </div>
     </div>
     
     <div class="notes-section">
       <text class="notes-label">添加备注</text>
-      <textarea class="notes-input" placeholder="记录今天的训练感受..." maxlength="200"></textarea>
+      <textarea class="notes-input" placeholder="记录今天的训练感受..." maxlength="200" value="{{ sessionData.notes }}" onchange="updateNotes"></textarea>
     </div>
     
     <div class="action-buttons">
@@ -74,9 +117,13 @@
         backhand: 0,
         avgHeartRate: 0,
         maxSpeed: 0,
+        heartRateSeries: [],
+        speedSeries: [],
+        notes: '',
         endTime: Date.now()
       },
-      sessionId: null
+      sessionId: null,
+      chartsReady: false
     },
     onInit() {
       // 获取路由参数中的会话ID
@@ -86,7 +133,26 @@
       // 加载会话数据
       this.loadSessionData()
     },
+    onReady() {
+      this.chartsReady = true
+      this.refreshCharts()
+    },
+    onDestroy() {
+      this.chartsReady = false
+    },
     loadSessionData() {
+      const params = this.$app.$def.router.getParams()
+      if (params && params.session) {
+        try {
+          const session = JSON.parse(params.session)
+          this.applySessionData(session)
+          this.refreshCharts()
+          return
+        } catch (err) {
+          console.error('解析会话数据失败:', err)
+        }
+      }
+
       // 如果有会话ID，则获取该会话的数据
       if (this.sessionId) {
         // 等待数据库初始化完成后再加载数据
@@ -97,24 +163,8 @@
             })
             .then(session => {
               if (session) {
-                // 将数据库字段映射到组件属性
-                this.sessionData = {
-                  id: session.id,
-                  mode: session.mode,
-                  duration: session.duration,
-                  calories: session.calories || 0,
-                  strokes: session.strokes || 0,
-                  smashes: session.smashes || 0,
-                  forehand: session.forehand || 0,
-                  backhand: session.backhand || 0,
-                  avgHeartRate: session.avg_heart_rate || 0,
-                  maxHeartRate: session.max_heart_rate || 0,
-                  minHeartRate: session.min_heart_rate || 0,
-                  maxSpeed: session.max_speed || 0,
-                  startTime: session.start_time,
-                  endTime: session.end_time,
-                  notes: session.notes
-                }
+                this.applySessionData(session)
+                this.refreshCharts()
               }
             })
             .catch(err => {
@@ -128,7 +178,136 @@
       } else {
         // 如果没有会话ID，则显示示例数据
         this.showDemoData()
+        this.refreshCharts()
       }
+    },
+    applySessionData(session) {
+      this.sessionData = {
+        id: session.id,
+        mode: session.mode,
+        duration: session.duration || 0,
+        calories: session.calories || 0,
+        strokes: session.strokes || 0,
+        smashes: session.smashes || 0,
+        forehand: session.forehand || 0,
+        backhand: session.backhand || 0,
+        avgHeartRate: session.avgHeartRate || session.avg_heart_rate || 0,
+        maxHeartRate: session.maxHeartRate || session.max_heart_rate || 0,
+        minHeartRate: session.minHeartRate || session.min_heart_rate || 0,
+        maxSpeed: session.maxSpeed || session.max_speed || 0,
+        heartRateSeries: session.heartRateSeries || session.heart_rate_series || [],
+        speedSeries: session.speedSeries || session.speed_series || [],
+        startTime: session.startTime || session.start_time,
+        endTime: session.endTime || session.end_time,
+        notes: session.notes || ''
+      }
+    },
+    refreshCharts() {
+      if (!this.chartsReady) return
+      this.$nextTick(() => {
+        this.drawRatioChart('forehandChart', this.sessionData.forehand, this.sessionData.backhand, '#33C9AB', '#4285F4')
+        const offense = this.sessionData.smashes || 0
+        const defense = this.getDefenseCount()
+        this.drawRatioChart('offenseChart', offense, defense, '#F4A642', '#9B59B6')
+        this.drawTrendChart('trendChart', this.sessionData.heartRateSeries, this.sessionData.speedSeries)
+      })
+    },
+    drawRatioChart(canvasId, primaryValue, secondaryValue, primaryColor, secondaryColor) {
+      const canvas = this.$element(canvasId)
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      const total = (primaryValue || 0) + (secondaryValue || 0)
+      const width = canvas.width
+      const height = canvas.height
+      const size = Math.min(width, height)
+      const radius = size / 2 - 6
+      const centerX = width / 2
+      const centerY = height / 2
+
+      ctx.clearRect(0, 0, width, height)
+
+      ctx.beginPath()
+      ctx.fillStyle = '#F2F2F2'
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+      ctx.fill()
+
+      if (total <= 0) {
+        ctx.beginPath()
+        ctx.strokeStyle = '#DDDDDD'
+        ctx.lineWidth = 6
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+        ctx.stroke()
+        return
+      }
+
+      const primaryAngle = (primaryValue / total) * Math.PI * 2
+      ctx.beginPath()
+      ctx.moveTo(centerX, centerY)
+      ctx.fillStyle = primaryColor
+      ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + primaryAngle)
+      ctx.fill()
+
+      ctx.beginPath()
+      ctx.moveTo(centerX, centerY)
+      ctx.fillStyle = secondaryColor
+      ctx.arc(centerX, centerY, radius, -Math.PI / 2 + primaryAngle, Math.PI * 1.5)
+      ctx.fill()
+    },
+    drawTrendChart(canvasId, heartRateSeries, speedSeries) {
+      const canvas = this.$element(canvasId)
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      const width = canvas.width
+      const height = canvas.height
+      ctx.clearRect(0, 0, width, height)
+
+      if (!heartRateSeries.length && !speedSeries.length) {
+        ctx.strokeStyle = '#DDDDDD'
+        ctx.strokeRect(4, 4, width - 8, height - 8)
+        return
+      }
+
+      const allPoints = heartRateSeries.concat(speedSeries)
+      const minTime = Math.min.apply(null, allPoints.map(point => point.t))
+      const maxTime = Math.max.apply(null, allPoints.map(point => point.t))
+      const padding = 8
+
+      const drawLine = (series, color, minValue, maxValue) => {
+        if (!series.length) return
+        ctx.beginPath()
+        series.forEach((point, index) => {
+          const x = padding + ((point.t - minTime) / (maxTime - minTime || 1)) * (width - padding * 2)
+          const y = height - padding - ((point.v - minValue) / (maxValue - minValue || 1)) * (height - padding * 2)
+          if (index === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        })
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+
+      const heartValues = heartRateSeries.map(point => point.v)
+      const speedValues = speedSeries.map(point => point.v)
+      const heartMin = Math.min.apply(null, heartValues.length ? heartValues : [0])
+      const heartMax = Math.max.apply(null, heartValues.length ? heartValues : [1])
+      const speedMin = Math.min.apply(null, speedValues.length ? speedValues : [0])
+      const speedMax = Math.max.apply(null, speedValues.length ? speedValues : [1])
+
+      drawLine(heartRateSeries, '#E74C3C', heartMin, heartMax)
+      drawLine(speedSeries, '#3498DB', speedMin, speedMax)
+    },
+    getDefenseCount() {
+      const total = this.sessionData.strokes || 0
+      const offense = this.sessionData.smashes || 0
+      const remaining = total - offense
+      return remaining > 0 ? remaining : 0
     },
     showDemoData() {
       // 示例数据用于展示
@@ -142,6 +321,20 @@
         backhand: 48,
         avgHeartRate: 132,
         maxSpeed: 85,
+        heartRateSeries: [
+          { t: Date.now() - 30 * 60 * 1000, v: 118 },
+          { t: Date.now() - 20 * 60 * 1000, v: 132 },
+          { t: Date.now() - 10 * 60 * 1000, v: 140 },
+          { t: Date.now() - 5 * 60 * 1000, v: 128 },
+          { t: Date.now(), v: 122 }
+        ],
+        speedSeries: [
+          { t: Date.now() - 30 * 60 * 1000, v: 52 },
+          { t: Date.now() - 20 * 60 * 1000, v: 63 },
+          { t: Date.now() - 10 * 60 * 1000, v: 70 },
+          { t: Date.now() - 5 * 60 * 1000, v: 58 },
+          { t: Date.now(), v: 60 }
+        ],
         endTime: Date.now()
       }
     },
@@ -152,14 +345,24 @@
       return formatter.formatDuration(seconds)
     },
     saveReport() {
+      const params = this.$app.$def.router.getParams()
+      const notes = params && params.notes
+
+      if (typeof notes === 'string') {
+        this.sessionData.notes = notes
+      }
+
       // 保存报告到本地存储
       if (global.dbInitPromise) {
         global.dbInitPromise
           .then(() => {
             return saveReport(this.sessionData)
           })
-          .then(() => {
-            // 提示保存成功
+          .then((id) => {
+            if (id && !this.sessionData.id) {
+              this.sessionData.id = id
+            }
+
             this.$app.$def.showToast('报告已保存')
           })
           .catch(err => {
@@ -172,6 +375,10 @@
     shareReport() {
       // 在实际应用中，这里会调用分享API
       this.$app.$def.showToast('分享功能开发中')
+    },
+    updateNotes(e) {
+      const value = e && (e.value || (e.detail && e.detail.value)) || ''
+      this.sessionData.notes = value
     }
   }
 </script>
@@ -240,15 +447,89 @@
     color: #333333;
     margin-bottom: 10px;
   }
-  
-  .chart-placeholder {
+
+  .chart-canvas {
     width: 100%;
-    height: 100px;
+    height: 140px;
     justify-content: center;
     align-items: center;
-    flex-direction: column;
     border: 1px solid #CCCCCC;
     border-radius: 8px;
+  }
+
+  .ratio-canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  .trend-chart {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .trend-canvas {
+    height: 160px;
+  }
+
+  .trend-canvas-inner {
+    width: 100%;
+    height: 100%;
+  }
+
+  .heart-color {
+    background-color: #E74C3C;
+  }
+
+  .speed-color {
+    background-color: #3498DB;
+  }
+
+  .chart-legend {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .chart-note {
+    font-size: 12px;
+    color: #999999;
+    margin-top: 6px;
+  }
+
+  .legend-item {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    margin-right: 6px;
+  }
+
+  .legend-text {
+    font-size: 14px;
+    color: #666666;
+  }
+
+  .forehand-color {
+    background-color: #33C9AB;
+  }
+
+  .backhand-color {
+    background-color: #4285F4;
+  }
+
+  .offense-color {
+    background-color: #F4A642;
+  }
+
+  .defense-color {
+    background-color: #9B59B6;
   }
   
   .notes-section {
