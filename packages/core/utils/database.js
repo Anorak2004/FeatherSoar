@@ -24,12 +24,16 @@ const CREATE_TABLE_SQL = `
     notes TEXT,
     heart_rate_series TEXT,
     speed_series TEXT,
+    scoreboard TEXT,
+    heart_rate_warning_events TEXT,
     updated_at INTEGER
   )
 `
 
 const ALTER_TABLE_HEART_RATE_SERIES = `ALTER TABLE sessions ADD COLUMN heart_rate_series TEXT`
 const ALTER_TABLE_SPEED_SERIES = `ALTER TABLE sessions ADD COLUMN speed_series TEXT`
+const ALTER_TABLE_SCOREBOARD = `ALTER TABLE sessions ADD COLUMN scoreboard TEXT`
+const ALTER_TABLE_HEART_RATE_WARNING_EVENTS = `ALTER TABLE sessions ADD COLUMN heart_rate_warning_events TEXT`
 const ALTER_TABLE_UPDATED_AT = `ALTER TABLE sessions ADD COLUMN updated_at INTEGER`
 
 const CREATE_INDEX_SQL = `CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON sessions(start_time)`
@@ -69,6 +73,14 @@ function ensureSessionColumns() {
 
       if (!columns.includes('speed_series')) {
         tasks.push(executeSqlInternal(ALTER_TABLE_SPEED_SERIES))
+      }
+
+      if (!columns.includes('scoreboard')) {
+        tasks.push(executeSqlInternal(ALTER_TABLE_SCOREBOARD))
+      }
+
+      if (!columns.includes('heart_rate_warning_events')) {
+        tasks.push(executeSqlInternal(ALTER_TABLE_HEART_RATE_WARNING_EVENTS))
       }
 
       if (!columns.includes('updated_at')) {

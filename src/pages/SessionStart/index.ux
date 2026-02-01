@@ -55,6 +55,16 @@
             <text class="slider-value">{{heartRateMax}}</text>
           </div>
         </div>
+
+        <div class="option-row">
+          <text class="option-label">计分牌</text>
+          <switch checked="{{scoreboardEnabled}}" onchange="onScoreboardToggle" />
+        </div>
+
+        <div class="option-row" if="{{scoreboardEnabled}}">
+          <text class="option-label">默认规则</text>
+          <text class="option-value">{{scoreboardRuleText}}</text>
+        </div>
       </div>
     </div>
     
@@ -76,7 +86,7 @@
 </template>
 
 <script>
-import { createSession } from '../../../packages/core/types'
+import { createSession, createDefaultScoreboard } from '../../../packages/core/types'
 import { getSettings, saveSettings } from '../../../packages/core/utils/storage'
 
 export default {
@@ -84,7 +94,9 @@ export default {
     selectedMode: 'singles',
     heartRateWarning: true,
     heartRateMin: 60,
-    heartRateMax: 180
+    heartRateMax: 180,
+    scoreboardEnabled: false,
+    scoreboardRuleText: '21分制，需胜2分，上限30；每2分换发球'
   },
   
   onInit() {
@@ -145,6 +157,14 @@ export default {
     },
     
     /**
+     * 计分牌开关变化事件
+     * @param {Object} e - 事件对象
+     */
+    onScoreboardToggle(e) {
+      this.scoreboardEnabled = e.checked
+    },
+
+    /**
      * 取消按钮点击事件
      */
     onCancelClick() {
@@ -157,6 +177,9 @@ export default {
     onStartClick() {
       // 创建新会话
       const session = createSession(this.selectedMode)
+      const scoreboard = createDefaultScoreboard()
+      scoreboard.enabled = this.scoreboardEnabled
+      session.scoreboard = scoreboard
       
       // 跳转到仪表盘页面，并传递会话数据
       global.router.push({
@@ -257,6 +280,11 @@ export default {
             width: 10 * $size-factor;
             text-align: right;
           }
+        }
+
+        .option-value {
+          font-size: $font-small;
+          color: $grey;
         }
       }
     }

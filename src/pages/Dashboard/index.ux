@@ -21,6 +21,33 @@
         </div>
       </div>
       
+      <div class="scoreboard-card" if="{{scoreboard && scoreboard.enabled}}">
+        <div class="scoreboard-row">
+          <div class="team">
+            <text class="team-name">A</text>
+            <text class="score">{{scoreboard.score.home}}</text>
+            <div class="serve-indicator {{scoreboard.serveSide === 'home' ? 'active' : ''}}"></div>
+            <div class="score-actions">
+              <button class="score-btn" onclick="onScoreDelta('home', 1)">+1</button>
+              <button class="score-btn" onclick="onScoreDelta('home', -1)">-1</button>
+            </div>
+          </div>
+          <div class="team">
+            <text class="team-name">B</text>
+            <text class="score">{{scoreboard.score.away}}</text>
+            <div class="serve-indicator {{scoreboard.serveSide === 'away' ? 'active' : ''}}"></div>
+            <div class="score-actions">
+              <button class="score-btn" onclick="onScoreDelta('away', 1)">+1</button>
+              <button class="score-btn" onclick="onScoreDelta('away', -1)">-1</button>
+            </div>
+          </div>
+        </div>
+        <div class="scoreboard-actions">
+          <button class="score-btn ghost" onclick="onUndoScore">撤销</button>
+          <button class="score-btn danger" onclick="onResetScore">重置</button>
+        </div>
+      </div>
+
       <div class="chart-container">
         <div class="chart-header">
           <text class="chart-title">趋势</text>
@@ -147,6 +174,14 @@ export default {
       heartRate: [],
       speed: []
     },
+
+    // 计分牌
+    scoreboard: null,
+
+    // 心率预警事件
+    heartRateWarningEvents: [],
+    lastWarningState: 'normal',
+    lastWarningEventAt: 0,
     
     // 定时器
     timerInterval: null,
@@ -161,6 +196,7 @@ export default {
     if (params.session) {
       this.session = JSON.parse(params.session)
       this.startTime = this.session.startTime
+      this.scoreboard = this.session.scoreboard || null
       
       // 设置模式文本
       switch (this.session.mode) {
@@ -228,6 +264,22 @@ export default {
         if (this.enableHeartRateWarning) {
           const warning = checkHeartRateWarning(this.heartRateMin, this.heartRateMax)
           this.heartRateWarning = warning.isWarning
+
+          const warningType = warning && warning.type ? warning.type : (warning.isWarning ? 'high' : 'normal')
+          const nowTs = Date.now()
+          const throttleMs = 5000
+          const stateChanged = warningType !== this.lastWarningState
+          const throttled = (nowTs - this.lastWarningEventAt) < throttleMs
+
+          if (stateChanged && !throttled) {
+            this.heartRateWarningEvents.push({
+              t: nowTs,
+              type: warningType,
+              value: warning.value || this.heartRate
+            })
+            this.lastWarningState = warningType
+            this.lastWarningEventAt = nowTs
+          }
           
           // 如果是预警状态，触发振动
           if (warning.isWarning) {
@@ -438,6 +490,63 @@ export default {
     },
     
     /**
+     * 计分变化
+     * @param {string} side - home/away
+     * @param {number} delta - 分数变化
+     */
+    onScoreDelta(side, delta) {
+      if (!this.scoreboard || !this.scoreboard.enabled) return
+      const next = { ...this.scoreboard }
+      const score = { ...next.score }
+
+      const before = { ...score }
+      score[side] = Math.max(0, score[side] + delta)
+      next.score = score
+
+      next.history = next.history || []
+      next.history.push({
+        before,
+        after: { ...score },
+        serveSide: next.serveSide,
+        ts: Date.now()
+      })
+
+      const total = score.home + score.away
+      if (next.rules && next.rules.serveInterval) {
+        const interval = next.rules.serveInterval
+        if (total > 0 && total % interval === 0) {
+          next.serveSide = next.serveSide === 'home' ? 'away' : 'home'
+        }
+      }
+
+      this.scoreboard = next
+    },
+
+    /**
+     * 撤销分数
+     */
+    onUndoScore() {
+      if (!this.scoreboard || !this.scoreboard.history || !this.scoreboard.history.length) return
+      const next = { ...this.scoreboard }
+      const last = next.history.pop()
+      next.score = last.before
+      next.serveSide = last.serveSide
+      this.scoreboard = next
+    },
+
+    /**
+     * 重置分数
+     */
+    onResetScore() {
+      if (!this.scoreboard) return
+      const next = { ...this.scoreboard }
+      next.score = { home: 0, away: 0 }
+      next.history = []
+      next.serveSide = next.rules ? next.rules.firstServe : 'home'
+      this.scoreboard = next
+    },
+
+    /**
      * 结束按钮点击事件
      */
     onEndClick() {
@@ -468,6 +577,8 @@ export default {
         t: point.timestamp,
         v: point.value
       }))
+      this.session.heartRateWarningEvents = this.heartRateWarningEvents
+      this.session.scoreboard = this.scoreboard
       
       // 保存会话后跳转报告页
       if (global.dbInitPromise) {
@@ -577,6 +688,78 @@ export default {
       }
     }
     
+    .scoreboard-card {
+      @include card;
+      width: 100%;
+      margin-bottom: $spacing-md;
+      padding: $spacing-md;
+
+      .scoreboard-row {
+        @include flex-box(row, space-between, center);
+      }
+
+      .team {
+        @include flex-box(column, center, center);
+        width: 48%;
+
+        .team-name {
+          font-size: $font-normal;
+          color: $dark-grey;
+        }
+
+        .score {
+          font-size: $font-xlarge;
+          color: $brand;
+          font-weight: bold;
+          margin: $spacing-xs 0;
+        }
+
+        .serve-indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 4px;
+          background-color: #CCCCCC;
+          margin-bottom: $spacing-xs;
+
+          &.active {
+            background-color: $brand;
+          }
+        }
+
+        .score-actions {
+          @include flex-box(row, space-between, center);
+          width: 100%;
+
+          .score-btn {
+            flex: 1;
+            margin: 0 $spacing-xs;
+            height: 10 * $size-factor;
+          }
+        }
+      }
+
+      .scoreboard-actions {
+        @include flex-box(row, space-between, center);
+        margin-top: $spacing-md;
+
+        .score-btn {
+          flex: 1;
+          margin: 0 $spacing-xs;
+          height: 10 * $size-factor;
+        }
+
+        .ghost {
+          background-color: $light-grey;
+          color: $dark-grey;
+        }
+
+        .danger {
+          background-color: $warning;
+          color: $white;
+        }
+      }
+    }
+
     .chart-container {
       @include card;
       width: 100%;

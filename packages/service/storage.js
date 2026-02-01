@@ -25,6 +25,48 @@ function parseSeries(payload) {
   }
 }
 
+function serializeScoreboard(scoreboard) {
+  if (!scoreboard) return null
+  try {
+    return JSON.stringify(scoreboard)
+  } catch (e) {
+    console.error('scoreboard 序列化失败:', e)
+    return null
+  }
+}
+
+function parseScoreboard(payload) {
+  if (!payload) return null
+  if (typeof payload === 'object') return payload
+  try {
+    return JSON.parse(payload)
+  } catch (e) {
+    console.error('scoreboard 解析失败:', e)
+    return null
+  }
+}
+
+function serializeWarningEvents(events) {
+  if (!events || !Array.isArray(events)) return null
+  try {
+    return JSON.stringify(events)
+  } catch (e) {
+    console.error('序列化预警事件失败:', e)
+    return null
+  }
+}
+
+function parseWarningEvents(payload) {
+  if (!payload) return []
+  if (Array.isArray(payload)) return payload
+  try {
+    return JSON.parse(payload)
+  } catch (e) {
+    console.error('解析预警事件失败:', e)
+    return []
+  }
+}
+
 /**
  * 保存会话数据到数据库
  * @param {Object} session - 会话数据
@@ -38,8 +80,9 @@ export function saveSession(session) {
         INSERT INTO sessions (
           mode, start_time, end_time, duration, calories, 
           max_speed, avg_heart_rate, max_heart_rate, min_heart_rate, 
-          strokes, smashes, forehand, backhand, notes, heart_rate_series, speed_series, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          strokes, smashes, forehand, backhand, notes, heart_rate_series, speed_series,
+          scoreboard, heart_rate_warning_events, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       
       // 准备参数
@@ -61,6 +104,8 @@ export function saveSession(session) {
         session.notes || '',
         serializeSeries(session.heartRateSeries || session.heart_rate_series),
         serializeSeries(session.speedSeries || session.speed_series),
+        serializeScoreboard(session.scoreboard || session.scoreboard_data),
+        serializeWarningEvents(session.heartRateWarningEvents || session.heart_rate_warning_events),
         now
       ]
       
@@ -113,7 +158,9 @@ export function getAllSessions(limit = 0, offset = 0) {
         const formatted = rows.map(item => ({
           ...item,
           heartRateSeries: parseSeries(item.heart_rate_series),
-          speedSeries: parseSeries(item.speed_series)
+          speedSeries: parseSeries(item.speed_series),
+          scoreboard: parseScoreboard(item.scoreboard),
+          heartRateWarningEvents: parseWarningEvents(item.heart_rate_warning_events)
         }))
         resolve(formatted)
       })
@@ -180,7 +227,9 @@ export function getHistoryList(page = 1, pageSize = 20) {
               forehand: item.forehand || 0,
               backhand: item.backhand || 0,
               heartRateSeries: parseSeries(item.heart_rate_series),
-              speedSeries: parseSeries(item.speed_series)
+              speedSeries: parseSeries(item.speed_series),
+              scoreboard: parseScoreboard(item.scoreboard),
+              heartRateWarningEvents: parseWarningEvents(item.heart_rate_warning_events)
             }
           })
           
@@ -355,7 +404,9 @@ export function getSessionById(sessionId) {
           resolve({
             ...row,
             heartRateSeries: parseSeries(row.heart_rate_series),
-            speedSeries: parseSeries(row.speed_series)
+            speedSeries: parseSeries(row.speed_series),
+            scoreboard: parseScoreboard(row.scoreboard),
+            heartRateWarningEvents: parseWarningEvents(row.heart_rate_warning_events)
           })
         } else {
           reject(new Error('未找到指定会话'))
@@ -402,6 +453,20 @@ export function updateSession(sessionId, updates) {
       if (Object.prototype.hasOwnProperty.call(normalizedUpdates, 'speedSeries')) {
         normalizedUpdates.speed_series = serializeSeries(normalizedUpdates.speedSeries)
         delete normalizedUpdates.speedSeries
+      }
+
+      if (Object.prototype.hasOwnProperty.call(normalizedUpdates, 'scoreboard')) {
+        normalizedUpdates.scoreboard = serializeScoreboard(normalizedUpdates.scoreboard)
+      }
+
+      if (Object.prototype.hasOwnProperty.call(normalizedUpdates, 'scoreboard_data')) {
+        normalizedUpdates.scoreboard = serializeScoreboard(normalizedUpdates.scoreboard_data)
+        delete normalizedUpdates.scoreboard_data
+      }
+
+      if (Object.prototype.hasOwnProperty.call(normalizedUpdates, 'heartRateWarningEvents')) {
+        normalizedUpdates.heart_rate_warning_events = serializeWarningEvents(normalizedUpdates.heartRateWarningEvents)
+        delete normalizedUpdates.heartRateWarningEvents
       }
       
       // 构建更新字段
@@ -505,7 +570,9 @@ export function saveReport(sessionData) {
       backhand: sessionData.backhand,
       notes: sessionData.notes,
       heartRateSeries: sessionData.heartRateSeries || sessionData.heart_rate_series,
-      speedSeries: sessionData.speedSeries || sessionData.speed_series
+      speedSeries: sessionData.speedSeries || sessionData.speed_series,
+      scoreboard: sessionData.scoreboard || sessionData.scoreboard_data,
+      heartRateWarningEvents: sessionData.heartRateWarningEvents || sessionData.heart_rate_warning_events
     }
 
     return updateSession(sessionData.id, updates).then(() => sessionData.id)

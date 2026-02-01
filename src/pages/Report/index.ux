@@ -35,6 +35,14 @@
         <text class="stat-value">{{ sessionData.smashes }}</text>
       </div>
     </div>
+
+    <div class="score-summary" if="{{sessionData.scoreboard && sessionData.scoreboard.enabled}}">
+      <text class="score-title">比分</text>
+      <text class="score-value">
+        {{sessionData.scoreboard.score.home}} - {{sessionData.scoreboard.score.away}}
+      </text>
+      <text class="score-winner">{{ getWinnerText() }}</text>
+    </div>
     
     <div class="ratio-chart">
       <text class="chart-title">正反手占比</text>
@@ -87,6 +95,22 @@
         </div>
       </div>
     </div>
+
+    <div class="warning-timeline">
+      <text class="chart-title">心率预警时间轴</text>
+      <div if="{{!(sessionData.heartRateWarningEvents && sessionData.heartRateWarningEvents.length)}}" class="empty-tip">
+        暂无预警记录
+      </div>
+      <div if="{{sessionData.heartRateWarningEvents && sessionData.heartRateWarningEvents.length}}">
+        <div class="timeline-row" for="{{sessionData.heartRateWarningEvents}}">
+          <text class="timeline-time">{{ formatTime($item.t) }}</text>
+          <text class="timeline-label">
+            {{ $item.type === 'high' ? '心率过高' : $item.type === 'low' ? '心率过低' : '恢复正常' }}
+          </text>
+          <text class="timeline-value">{{ $item.value }} bpm</text>
+        </div>
+      </div>
+    </div>
     
     <div class="notes-section">
       <text class="notes-label">添加备注</text>
@@ -119,6 +143,8 @@
         maxSpeed: 0,
         heartRateSeries: [],
         speedSeries: [],
+        heartRateWarningEvents: [],
+        scoreboard: null,
         notes: '',
         endTime: Date.now()
       },
@@ -197,6 +223,8 @@
         maxSpeed: session.maxSpeed || session.max_speed || 0,
         heartRateSeries: session.heartRateSeries || session.heart_rate_series || [],
         speedSeries: session.speedSeries || session.speed_series || [],
+        heartRateWarningEvents: session.heartRateWarningEvents || session.heart_rate_warning_events || [],
+        scoreboard: session.scoreboard || session.scoreboard_data || null,
         startTime: session.startTime || session.start_time,
         endTime: session.endTime || session.end_time,
         notes: session.notes || ''
@@ -343,6 +371,15 @@
     },
     formatDuration(seconds) {
       return formatter.formatDuration(seconds)
+    },
+    formatTime(ts) {
+      return dateTime.formatDate(ts, 'HH:mm:ss')
+    },
+    getWinnerText() {
+      const sb = this.sessionData.scoreboard
+      if (!sb || !sb.score) return ''
+      if (sb.score.home === sb.score.away) return '平局'
+      return sb.score.home > sb.score.away ? 'A胜' : 'B胜'
     },
     saveReport() {
       const params = this.$app.$def.router.getParams()
@@ -532,6 +569,62 @@
     background-color: #9B59B6;
   }
   
+  .warning-timeline {
+    margin-top: 10px;
+    width: 100%;
+  }
+
+  .timeline-row {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 6px 0;
+  }
+
+  .timeline-time {
+    color: #666666;
+    font-size: 12px;
+  }
+
+  .timeline-label {
+    font-size: 14px;
+    color: #333333;
+  }
+
+  .timeline-value {
+    font-size: 12px;
+    color: #999999;
+  }
+
+  .empty-tip {
+    font-size: 12px;
+    color: #999999;
+    margin-top: 6px;
+  }
+
+  .score-summary {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+
+  .score-title {
+    font-size: 16px;
+    color: #333333;
+  }
+
+  .score-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #33C9AB;
+    margin-top: 6px;
+  }
+
+  .score-winner {
+    font-size: 14px;
+    color: #666666;
+    margin-top: 4px;
+  }
+
   .notes-section {
     margin-top: 10px;
     margin-bottom: 20px;

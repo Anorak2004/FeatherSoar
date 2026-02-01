@@ -21,6 +21,8 @@
  * @property {number} forehand - 正手次数
  * @property {number} backhand - 反手次数
  * @property {string} notes - 备注
+ * @property {Object} scoreboard - 计分牌数据
+ * @property {Array} heartRateWarningEvents - 心率预警事件
  */
 
 /**
@@ -48,6 +50,22 @@
  * @param {string} mode - 运动模式
  * @returns {Session} 新会话对象
  */
+export function createDefaultScoreboard() {
+  return {
+    enabled: false,
+    rules: {
+      pointsToWin: 21,
+      winBy: 2,
+      maxPoints: 30,
+      serveInterval: 2,
+      firstServe: 'home'
+    },
+    score: { home: 0, away: 0 },
+    serveSide: 'home',
+    history: []
+  }
+}
+
 export function createSession(mode) {
   const startTime = Date.now()
   
@@ -66,7 +84,9 @@ export function createSession(mode) {
     smashes: 0,
     forehand: 0,
     backhand: 0,
-    notes: ''
+    notes: '',
+    scoreboard: createDefaultScoreboard(),
+    heartRateWarningEvents: []
   }
 }
 
