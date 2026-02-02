@@ -65,6 +65,70 @@
           <text class="option-label">默认规则</text>
           <text class="option-value">{{scoreboardRuleText}}</text>
         </div>
+
+        <div class="option-row" if="{{scoreboardEnabled}}">
+          <text class="option-label">获胜分数</text>
+          <div class="slider-container">
+            <slider
+              min="11"
+              max="31"
+              step="1"
+              value="{{scoreboardPointsToWin}}"
+              onchange="onScoreboardPointsToWinChange"
+            />
+            <text class="slider-value">{{scoreboardPointsToWin}}</text>
+          </div>
+        </div>
+
+        <div class="option-row" if="{{scoreboardEnabled}}">
+          <text class="option-label">胜分差</text>
+          <div class="slider-container">
+            <slider
+              min="1"
+              max="5"
+              step="1"
+              value="{{scoreboardWinBy}}"
+              onchange="onScoreboardWinByChange"
+            />
+            <text class="slider-value">{{scoreboardWinBy}}</text>
+          </div>
+        </div>
+
+        <div class="option-row" if="{{scoreboardEnabled}}">
+          <text class="option-label">最高分</text>
+          <div class="slider-container">
+            <slider
+              min="21"
+              max="50"
+              step="1"
+              value="{{scoreboardMaxPoints}}"
+              onchange="onScoreboardMaxPointsChange"
+            />
+            <text class="slider-value">{{scoreboardMaxPoints}}</text>
+          </div>
+        </div>
+
+        <div class="option-row" if="{{scoreboardEnabled}}">
+          <text class="option-label">发球轮换</text>
+          <div class="slider-container">
+            <slider
+              min="1"
+              max="5"
+              step="1"
+              value="{{scoreboardServeInterval}}"
+              onchange="onScoreboardServeIntervalChange"
+            />
+            <text class="slider-value">{{scoreboardServeInterval}}分</text>
+          </div>
+        </div>
+
+        <div class="option-row" if="{{scoreboardEnabled}}">
+          <text class="option-label">先发球</text>
+          <div class="selector-container">
+            <text class="selector-option {{scoreboardFirstServe === 'home' ? 'selected' : ''}}" onclick="onScoreboardFirstServeChange('home')">A队</text>
+            <text class="selector-option {{scoreboardFirstServe === 'away' ? 'selected' : ''}}" onclick="onScoreboardFirstServeChange('away')">B队</text>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -96,7 +160,12 @@ export default {
     heartRateMin: 60,
     heartRateMax: 180,
     scoreboardEnabled: false,
-    scoreboardRuleText: '21分制，需胜2分，上限30；每2分换发球'
+    scoreboardRuleText: '21分制，需胜2分，上限30；每2分换发球',
+    scoreboardPointsToWin: 21,
+    scoreboardWinBy: 2,
+    scoreboardMaxPoints: 30,
+    scoreboardServeInterval: 2,
+    scoreboardFirstServe: 'home'
   },
   
   onInit() {
@@ -106,6 +175,7 @@ export default {
     this.heartRateWarning = settings.vibrateOnWarning
     this.heartRateMin = settings.heartRateMin
     this.heartRateMax = settings.heartRateMax
+    this.updateScoreboardRuleText()
   },
   
   methods: {
@@ -164,6 +234,34 @@ export default {
       this.scoreboardEnabled = e.checked
     },
 
+    onScoreboardPointsToWinChange(e) {
+      this.scoreboardPointsToWin = e.progress
+      this.updateScoreboardRuleText()
+    },
+
+    onScoreboardWinByChange(e) {
+      this.scoreboardWinBy = e.progress
+      this.updateScoreboardRuleText()
+    },
+
+    onScoreboardMaxPointsChange(e) {
+      this.scoreboardMaxPoints = e.progress
+      this.updateScoreboardRuleText()
+    },
+
+    onScoreboardServeIntervalChange(e) {
+      this.scoreboardServeInterval = e.progress
+      this.updateScoreboardRuleText()
+    },
+
+    onScoreboardFirstServeChange(side) {
+      this.scoreboardFirstServe = side
+    },
+
+    updateScoreboardRuleText() {
+      this.scoreboardRuleText = `${this.scoreboardPointsToWin}分制，需胜${this.scoreboardWinBy}分，上限${this.scoreboardMaxPoints}；每${this.scoreboardServeInterval}分换发球`
+    },
+
     /**
      * 取消按钮点击事件
      */
@@ -179,6 +277,14 @@ export default {
       const session = createSession(this.selectedMode)
       const scoreboard = createDefaultScoreboard()
       scoreboard.enabled = this.scoreboardEnabled
+      scoreboard.rules = {
+        pointsToWin: this.scoreboardPointsToWin,
+        winBy: this.scoreboardWinBy,
+        maxPoints: this.scoreboardMaxPoints,
+        serveInterval: this.scoreboardServeInterval,
+        firstServe: this.scoreboardFirstServe
+      }
+      scoreboard.serveSide = this.scoreboardFirstServe
       session.scoreboard = scoreboard
       
       // 跳转到仪表盘页面，并传递会话数据
@@ -257,6 +363,7 @@ export default {
       .option-row {
         @include flex-box(row, space-between, center);
         width: 100%;
+        min-height: 10 * $size-factor;
         margin-bottom: $spacing-md;
         
         .option-label {
@@ -285,6 +392,28 @@ export default {
         .option-value {
           font-size: $font-small;
           color: $grey;
+        }
+
+        .selector-container {
+          @include flex-box(row, flex-end, center);
+          flex: 1;
+          margin-left: $spacing-md;
+        }
+
+        .selector-option {
+          padding: 0 $spacing-sm;
+          height: 8 * $size-factor;
+          border-radius: 4 * $size-factor;
+          margin-left: $spacing-sm;
+          background-color: $light-grey;
+          color: $dark-grey;
+          text-align: center;
+          line-height: 8 * $size-factor;
+        }
+
+        .selector-option.selected {
+          background-color: $brand;
+          color: $white;
         }
       }
     }

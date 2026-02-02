@@ -22,6 +22,9 @@
       </div>
       
       <div class="scoreboard-card" if="{{scoreboard && scoreboard.enabled}}">
+        <div class="scoreboard-rule">
+          <text class="rule-text">{{scoreboard.rules.pointsToWin}}分制，胜{{scoreboard.rules.winBy}}分，上限{{scoreboard.rules.maxPoints}}，每{{scoreboard.rules.serveInterval}}分换发球</text>
+        </div>
         <div class="scoreboard-row">
           <div class="team">
             <text class="team-name">A</text>
@@ -45,6 +48,9 @@
         <div class="scoreboard-actions">
           <button class="score-btn ghost" onclick="onUndoScore">撤销</button>
           <button class="score-btn danger" onclick="onResetScore">重置</button>
+        </div>
+        <div class="scoreboard-result" if="{{scoreboard.finished}}">
+          <text class="result-text">比赛结束，{{getScoreboardWinnerText()}}</text>
         </div>
       </div>
 
@@ -196,7 +202,11 @@ export default {
     if (params.session) {
       this.session = JSON.parse(params.session)
       this.startTime = this.session.startTime
-      this.scoreboard = this.session.scoreboard || null
+      if (this.session.scoreboard) {
+        this.scoreboard = this.applyScoreboardRules({ ...this.session.scoreboard })
+      } else {
+        this.scoreboard = null
+      }
       
       // 设置模式文本
       switch (this.session.mode) {
@@ -242,6 +252,56 @@ export default {
   },
   
   methods: {
+    getScoreboardRules(scoreboard) {
+      const rules = (scoreboard && scoreboard.rules) || {}
+      return {
+        pointsToWin: Number(rules.pointsToWin) || 21,
+        winBy: Number(rules.winBy) || 2,
+        maxPoints: Number.isFinite(Number(rules.maxPoints)) ? Number(rules.maxPoints) : 30,
+        serveInterval: Number(rules.serveInterval) || 2,
+        firstServe: rules.firstServe || 'home'
+      }
+    },
+
+    computeServeSide(totalPoints, rules) {
+      const interval = Math.max(1, Number(rules.serveInterval) || 2)
+      const toggles = Math.floor(Math.max(0, totalPoints) / interval)
+      if (toggles % 2 === 0) return rules.firstServe
+      return rules.firstServe === 'home' ? 'away' : 'home'
+    },
+
+    applyScoreboardRules(scoreboard) {
+      if (!scoreboard) return scoreboard
+      const rules = this.getScoreboardRules(scoreboard)
+      const score = scoreboard.score || { home: 0, away: 0 }
+      const home = Number(score.home) || 0
+      const away = Number(score.away) || 0
+      const maxPoints = rules.maxPoints
+      const pointsToWin = rules.pointsToWin
+      const winBy = rules.winBy
+
+      let winner = null
+      let finished = false
+
+      const diff = Math.abs(home - away)
+
+      if (maxPoints > 0 && (home >= maxPoints || away >= maxPoints)) {
+        finished = true
+        winner = home >= away ? 'home' : 'away'
+      } else if ((home >= pointsToWin || away >= pointsToWin) && diff >= winBy) {
+        finished = true
+        winner = home >= away ? 'home' : 'away'
+      }
+
+      scoreboard.finished = finished
+      scoreboard.winner = winner
+      scoreboard.score = { home, away }
+      scoreboard.rules = rules
+      scoreboard.serveSide = this.computeServeSide(home + away, rules)
+
+      return scoreboard
+    },
+
     /**
      * 开始所有监测
      */
@@ -496,6 +556,7 @@ export default {
      */
     onScoreDelta(side, delta) {
       if (!this.scoreboard || !this.scoreboard.enabled) return
+      if (this.scoreboard.finished && delta > 0) return
       const next = { ...this.scoreboard }
       const score = { ...next.score }
 
@@ -511,15 +572,7 @@ export default {
         ts: Date.now()
       })
 
-      const total = score.home + score.away
-      if (next.rules && next.rules.serveInterval) {
-        const interval = next.rules.serveInterval
-        if (total > 0 && total % interval === 0) {
-          next.serveSide = next.serveSide === 'home' ? 'away' : 'home'
-        }
-      }
-
-      this.scoreboard = next
+      this.scoreboard = this.applyScoreboardRules(next)
     },
 
     /**
@@ -530,8 +583,12 @@ export default {
       const next = { ...this.scoreboard }
       const last = next.history.pop()
       next.score = last.before
-      next.serveSide = last.serveSide
-      this.scoreboard = next
+      this.scoreboard = this.applyScoreboardRules(next)
+    },
+
+    getScoreboardWinnerText() {
+      if (!this.scoreboard || !this.scoreboard.finished) return ''
+      return this.scoreboard.winner === 'home' ? 'A胜' : 'B胜'
     },
 
     /**
@@ -542,8 +599,7 @@ export default {
       const next = { ...this.scoreboard }
       next.score = { home: 0, away: 0 }
       next.history = []
-      next.serveSide = next.rules ? next.rules.firstServe : 'home'
-      this.scoreboard = next
+      this.scoreboard = this.applyScoreboardRules(next)
     },
 
     /**
@@ -694,6 +750,16 @@ export default {
       margin-bottom: $spacing-md;
       padding: $spacing-md;
 
+      .scoreboard-rule {
+        margin-bottom: $spacing-sm;
+        text-align: center;
+
+        .rule-text {
+          font-size: $font-small;
+          color: $grey;
+        }
+      }
+
       .scoreboard-row {
         @include flex-box(row, space-between, center);
       }
@@ -756,6 +822,17 @@ export default {
         .danger {
           background-color: $warning;
           color: $white;
+        }
+      }
+
+      .scoreboard-result {
+        margin-top: $spacing-sm;
+        text-align: center;
+
+        .result-text {
+          font-size: $font-small;
+          color: $warning;
+          font-weight: bold;
         }
       }
     }
